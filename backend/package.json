@@ -1,0 +1,30 @@
+{
+  "name": "ssh-agre-backend",
+  "version": "0.1.0",
+  "description": "SSH AGRE Backend - SSH Connection Management API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.6",
+    "ssh2": "^1.15.0",
+    "ws": "^8.14.2",
+    "uuid": "^9.0.1",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "express-validator": "^7.0.1",
+    "express-slow-down": "^2.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

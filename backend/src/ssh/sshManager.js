@@ -1,0 +1,323 @@
+const { Client } = require('ssh2');
+const { v4: uuidv4 } = require('uuid');
+const { getConnectionById } = require('../db/connections');
+const { verifyHostKey, addKnownHost } = require('../db/knownHosts');
+const { logCommand } = require('../db/audit');
+
+// Active SSH sessions storage
+const activeSessions = new Map();
+
+// Session timeout: 30 minutes (in milliseconds)
+const SESSION_TIMEOUT = 30 * 60 * 1000;
+// Keep-alive interval: 30 seconds
+const KEEP_ALIVE_INTERVAL = 30000;
+
+class SSHSession {
+  constructor(sessionId, connectionId, userId) {
+    this.sessionId = sessionId;
+    this.connectionId = connectionId;
+    this.userId = userId;
+    this.client = new Client();
+    this.stream = null;
+    this.ws = null;
+    this.lastActivity = Date.now();
+    this.keepAliveTimer = null;
+    this.timeoutTimer = null;
+    this.connected = false;
+    this.connectionInfo = null;
+  }
+
+  async connect(ws) {
+    this.ws = ws;
+    
+    try {
+      // Get connection details from database
+      this.connectionInfo = await getConnectionById(this.connectionId, this.userId);
+      
+      if (!this.connectionInfo) {
+        throw new Error('Connection not found');
+      }
+
+      const connectConfig = {
+        host: this.connectionInfo.host,
+        port: this.connectionInfo.port || 22,
+        username: this.connectionInfo.username,
+        keepaliveInterval: KEEP_ALIVE_INTERVAL,
+        keepaliveCountMax: 3,
+        readyTimeout: 20000,
+        // SECURITY: Host key verification
+        hostHash: 'sha256',
+        hostVerifier: async (keyHash) => {
+          return await this.verifyHostKey(keyHash);
+        }
+      };
+
+      if (this.connectionInfo.use_key_auth) {
+        connectConfig.privateKey = this.connectionInfo.private_key;
+      } else {
+        connectConfig.password = this.connectionInfo.password;
+      }
+
+      return new Promise((resolve, reject) => {
+        this.client.on('ready', () => {
+          console.log(`[SSH] Connection established: ${this.sessionId}`);
+          this.connected = true;
+          this.startKeepAlive();
+          this.startTimeoutCheck();
+          
+          // Open shell session with 256-color terminal type
+          this.client.shell({
+            term: 'xterm-256color',
+            cols: 80,
+            rows: 24
+          }, (err, stream) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            
+            this.stream = stream;
+            this.setupStreamHandlers();
+            this.sendToClient({ type: 'connected', sessionId: this.sessionId });
+            resolve();
+          });
+        });
+
+        this.client.on('error', (err) => {
+          console.error(`[SSH] Connection error: ${this.sessionId}`, err.message);
+          this.sendToClient({ type: 'error', message: err.message });
+          reject(err);
+        });
+
+        this.client.on('close', () => {
+          console.log(`[SSH] Connection closed: ${this.sessionId}`);
+          this.cleanup();
+        });
+
+        this.client.connect(connectConfig);
+      });
+    } catch (error) {
+      console.error(`[SSH] Connection setup error: ${this.sessionId}`, error);
+      throw error;
+    }
+  }
+
+  setupStreamHandlers() {
+    this.stream.on('data', (data) => {
+      this.updateActivity();
+      this.sendToClient({ 
+        type: 'data', 
+        data: data.toString('utf-8') 
+      });
+    });
+
+    this.stream.on('close', () => {
+      console.log(`[SSH] Stream closed: ${this.sessionId}`);
+      this.sendToClient({ type: 'disconnected' });
+      this.cleanup();
+    });
+
+    this.stream.on('error', (err) => {
+      console.error(`[SSH] Stream error: ${this.sessionId}`, err);
+      this.sendToClient({ type: 'error', message: err.message });
+    });
+  }
+
+  handleInput(data) {
+    if (this.stream && this.connected) {
+      this.updateActivity();
+      this.stream.write(data);
+      
+      // SECURITY: Audit log commands (but not every keystroke)
+      // Only log complete commands (ending with newline) or special commands
+      if (data.includes('\n') || data.includes('\r')) {
+        const command = data.trim();
+        if (command) {
+          logCommand(this.userId, this.connectionId, this.sessionId, command, 'input')
+            .catch(err => console.error('[AUDIT] Failed to log command:', err));
+        }
+      }
+    }
+  }
+
+  resize(columns, rows) {
+    if (this.stream && this.connected) {
+      this.stream.setWindow(rows, columns);
+    }
+  }
+
+  sendToClient(message) {
+    if (this.ws && this.ws.readyState === 1) { // WebSocket.OPEN
+      this.ws.send(JSON.stringify(message));
+    }
+  }
+
+  updateActivity() {
+    this.lastActivity = Date.now();
+  }
+
+  startKeepAlive() {
+    this.keepAliveTimer = setInterval(() => {
+      if (this.client && this.connected) {
+        // Send SSH keepalive request
+        this.client.exec('echo', (err, stream) => {
+          if (err) {
+            console.error(`[SSH] Keepalive error: ${this.sessionId}`, err);
+          } else {
+            stream.close();
+          }
+        });
+      }
+    }, KEEP_ALIVE_INTERVAL);
+  }
+
+  startTimeoutCheck() {
+    this.timeoutTimer = setInterval(() => {
+      const inactiveTime = Date.now() - this.lastActivity;
+      if (inactiveTime > SESSION_TIMEOUT) {
+        console.log(`[SSH] Session timeout: ${this.sessionId}`);
+        this.sendToClient({ 
+          type: 'timeout', 
+          message: 'Session closed due to 30 minutes of inactivity' 
+        });
+        this.disconnect();
+      }
+    }, 60000); // Check every minute
+  }
+
+  disconnect() {
+    this.cleanup();
+  }
+
+  cleanup() {
+    this.connected = false;
+    
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
+    
+    if (this.timeoutTimer) {
+      clearInterval(this.timeoutTimer);
+      this.timeoutTimer = null;
+    }
+    
+    if (this.stream) {
+      this.stream.close();
+      this.stream = null;
+    }
+    
+    if (this.client) {
+      this.client.end();
+    }
+    
+    // Remove from active sessions
+    activeSessions.delete(this.sessionId);
+  }
+
+  // SECURITY: Verify SSH host key against known_hosts
+  async verifyHostKey(keyHash) {
+    try {
+      const result = await verifyHostKey(
+        this.userId,
+        this.connectionInfo.host,
+        this.connectionInfo.port || 22,
+        'sha256',
+        keyHash
+      );
+
+      if (result.status === 'match') {
+        console.log(`[SSH] Host key verified for ${this.connectionInfo.host}`);
+        return true;
+      } else if (result.status === 'new') {
+        console.log(`[SSH] New host key for ${this.connectionInfo.host}, adding to known hosts`);
+        await addKnownHost(
+          this.userId,
+          this.connectionInfo.host,
+          this.connectionInfo.port || 22,
+          'sha256',
+          keyHash
+        );
+        // Notify client about new host key
+        this.sendToClient({
+          type: 'hostkey',
+          status: 'new',
+          host: this.connectionInfo.host,
+          message: `New host key added for ${this.connectionInfo.host}`
+        });
+        return true;
+      } else if (result.status === 'mismatch') {
+        console.error(`[SSH] HOST KEY MISMATCH for ${this.connectionInfo.host}!`);
+        console.error(`[SSH] Expected: ${result.known.keyType} ${result.known.hostKey}`);
+        console.error(`[SSH] Received: sha256 ${keyHash}`);
+        
+        // Notify client about mismatch - potential MITM attack
+        this.sendToClient({
+          type: 'hostkey',
+          status: 'mismatch',
+          host: this.connectionInfo.host,
+          message: `WARNING: Host key mismatch for ${this.connectionInfo.host}! Possible man-in-the-middle attack.`,
+          lastSeen: result.known.lastSeen
+        });
+        return false;
+      }
+    } catch (err) {
+      console.error('[SSH] Host key verification error:', err);
+      return false;
+    }
+  }
+}
+
+// Session management functions
+function createSession(connectionId, userId) {
+  const sessionId = uuidv4();
+  const session = new SSHSession(sessionId, connectionId, userId);
+  activeSessions.set(sessionId, session);
+  return session;
+}
+
+function getSession(sessionId) {
+  return activeSessions.get(sessionId);
+}
+
+function endSession(sessionId) {
+  const session = activeSessions.get(sessionId);
+  if (session) {
+    session.disconnect();
+  }
+}
+
+function endAllUserSessions(userId) {
+  for (const [sessionId, session] of activeSessions.entries()) {
+    if (session.userId === userId) {
+      session.disconnect();
+    }
+  }
+}
+
+function getSessionStatus() {
+  const sessions = [];
+  for (const [sessionId, session] of activeSessions.entries()) {
+    sessions.push({
+      sessionId,
+      connectionId: session.connectionId,
+      userId: session.userId,
+      connected: session.connected,
+      connectionInfo: session.connectionInfo ? {
+        name: session.connectionInfo.name,
+        host: session.connectionInfo.host
+      } : null
+    });
+  }
+  return sessions;
+}
+
+module.exports = {
+  SSHSession,
+  createSession,
+  getSession,
+  endSession,
+  endAllUserSessions,
+  getSessionStatus,
+  activeSessions
+};

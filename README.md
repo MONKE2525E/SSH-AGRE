@@ -1,0 +1,243 @@
+# SSH AGRE
+
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/yourusername/ssh-agre/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-ready-green)](docker-compose.yml)
+
+A professional SSH aggregation and management platform with a dark industrial design. Manage multiple SSH connections simultaneously through a web-based interface with persistent sessions, command automation, and role-based user management.
+
+## Features
+
+- **Multi-Session Management**: Connect to and manage multiple SSH sessions simultaneously in a tabbed interface
+- **Session Persistence**: Connections stay alive for 30+ minutes with automatic keep-alive packets
+- **Web-Based Terminal**: Full terminal emulation using xterm.js with 256-color support
+- **Command Library**: Create, edit, and execute predefined command macros
+- **Connection Management**: Save SSH connections with credentials and quick-connect options
+- **User Management**: Role-based access control with Admin and Basic user roles
+- **Security**: JWT authentication, bcrypt password hashing, rate limiting, input validation
+
+## Quick Start
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- Or Node.js 16+ for development
+
+### Docker Deployment
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/ssh-agre.git
+cd ssh-agre
+
+# Start the application
+docker-compose up -d
+
+# Access the application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:3001
+```
+
+On first run, a setup wizard will guide you through creating the administrator account and configuring your first SSH connection.
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | `ssh-agre-secret-key` | JWT signing secret - **CHANGE THIS IN PRODUCTION** |
+| `PORT` | `3001` | Backend API port |
+| `NODE_ENV` | `development` | Node environment |
+
+### Docker Compose
+
+The application runs three services:
+- **Frontend** (port 3000): React web interface served by Nginx
+- **Backend** (port 3001): Node.js API server
+- **Data Volume**: SQLite database persistence
+
+## Architecture
+
+### Backend
+- **Node.js** + Express REST API
+- **SQLite** database for users, connections, and commands
+- **SSH2** library for SSH connections
+- **WebSocket** for real-time terminal I/O
+- **JWT** authentication with bcrypt password hashing
+
+### Frontend
+- **React** 18 with functional components and hooks
+- **React Router** for navigation
+- **xterm.js** for terminal emulation
+- **CSS** with CSS variables for theming
+
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/setup` | Initial setup (first admin) |
+| GET | `/api/auth/setup-status` | Check if setup is needed |
+| POST | `/api/auth/setup-complete` | Mark setup complete |
+| POST | `/api/auth/login` | User login |
+| POST | `/api/auth/register` | User registration |
+
+### Users (requires auth)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users/me` | Get current profile |
+| PUT | `/api/users/me` | Update profile |
+| DELETE | `/api/users/me` | Delete account |
+| GET | `/api/users` | List all users (admin only) |
+| GET | `/api/users/pending` | Pending approvals (admin) |
+| POST | `/api/users/:id/approve` | Approve user (admin) |
+| POST | `/api/users/:id/toggle-admin` | Toggle admin role (admin) |
+| DELETE | `/api/users/:id` | Delete user (admin) |
+
+### Connections (requires auth)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/connections` | List connections |
+| POST | `/api/connections` | Create connection |
+| PUT | `/api/connections/:id` | Update connection |
+| DELETE | `/api/connections/:id` | Delete connection |
+
+### Commands (requires auth)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/commands` | List commands |
+| POST | `/api/commands` | Create command |
+| PUT | `/api/commands/:id` | Update command |
+| DELETE | `/api/commands/:id` | Delete command |
+
+### WebSocket
+| Endpoint | Description |
+|----------|-------------|
+| `WS /ws/terminal?token=<jwt>` | Terminal WebSocket for SSH sessions |
+
+## Development
+
+### Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### Reset Database
+
+```bash
+docker-compose down
+rm -rf ./data
+rm -rf ./backend/node_modules
+rm -rf ./frontend/node_modules
+docker-compose up -d
+```
+
+## User Roles
+
+### Administrator
+- Full access to all features
+- Can approve/deny new user registrations
+- Can promote/demote users to admin
+- Can delete any user account
+- Can change their own username
+
+### Basic User
+- Can create and manage their own SSH connections
+- Can create and manage their own command macros
+- Can update display name and password
+- Cannot access user management features
+
+## Security
+
+- **JWT Authentication**: Secure token-based auth with 24h expiration
+- **Password Hashing**: bcrypt with salt rounds
+- **Rate Limiting**: 100 requests per 15 minutes per IP
+- **Input Validation**: All inputs validated and sanitized
+- **Helmet**: HTTP security headers
+- **CORS**: Configured for specific origins
+
+## Project Structure
+
+```
+ssh-agre/
+├── backend/
+│   ├── src/
+│   │   ├── db/          # Database operations
+│   │   ├── middleware/  # Auth, security, validation
+│   │   ├── routes/      # API routes
+│   │   ├── ssh/         # SSH connection management
+│   │   ├── ws/          # WebSocket handlers
+│   │   └── index.js     # Server entry
+│   ├── Dockerfile
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/  # React components
+│   │   ├── contexts/    # React contexts
+│   │   ├── pages/       # Route pages
+│   │   ├── styles/      # CSS files
+│   │   └── App.js       # App entry
+│   ├── Dockerfile
+│   └── package.json
+├── docker-compose.yml
+├── .gitignore
+├── LICENSE
+└── README.md
+```
+
+## Troubleshooting
+
+### Container won't start
+```bash
+docker-compose logs backend
+docker-compose logs frontend
+```
+
+### Database issues
+```bash
+docker-compose down
+rm ./data/ssh_agre.db
+docker-compose up -d
+```
+
+### Reset everything
+```bash
+docker-compose down
+rm -rf ./data
+docker-compose up -d --build
+```
+
+## Changelog
+
+### v0.1.0 (2026-04-06)
+- Initial release
+- Multi-session SSH management
+- User authentication with roles
+- Command library with edit/delete
+- Fixed settings modal layout
+- Dark industrial theme
+- Setup wizard for initial configuration
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Submit a pull request

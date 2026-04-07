@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "31457:31457"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=31457
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SSH_KEY_ENCRYPTION_SECRET=${SSH_KEY_ENCRYPTION_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:27291}
+    networks:
+      - ssh-agre-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "27291:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:31457
+    depends_on:
+      - backend
+    networks:
+      - ssh-agre-network
+    restart: unless-stopped
+
+networks:
+  ssh-agre-network:
+    driver: bridge
