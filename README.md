@@ -59,8 +59,8 @@ cd ssh-agre
 docker-compose up -d
 
 # Access the application
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:3001
+# Frontend: http://localhost:27291
+# Backend API: http://localhost:31457
 ```
 
 On first run, a setup wizard will guide you through creating the administrator account and configuring your first SSH connection.
