@@ -89,7 +89,7 @@ router.post('/execute', authenticateToken, async (req, res) => {
       
       results.push({ connectionId, status: 'success', connectionName: connection.name });
     } catch (error) {
-      console.error(`[BATCH] Failed on connection ${connectionId}:`, error.message);
+      console.error('[BATCH] Failed on connection %s: %s', connectionId, error.message);
       results.push({ connectionId, status: 'error', message: error.message });
     }
   }
