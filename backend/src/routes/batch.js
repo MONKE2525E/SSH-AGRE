@@ -12,7 +12,7 @@ router.post('/execute', authenticateToken, async (req, res) => {
 
   console.log('[BATCH] Execute request:', { command, connectionIds, userId });
 
-  if (!command || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
+  if (!command || typeof command !== 'string' || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
     return res.status(400).json({ error: 'Command and at least one connection ID required' });
   }
 
@@ -99,3 +99,4 @@ router.post('/execute', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+exports = router;

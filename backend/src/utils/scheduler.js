@@ -91,7 +91,7 @@ class Scheduler {
       // Trigger a sync to pick up the fresh state
       await this.syncSchedules();
     } catch (error) {
-      console.error(`[SCHEDULER] Error reloading schedule ${scheduleId}:`, error);
+      console.error('[SCHEDULER] Error reloading schedule %s:', scheduleId, error);
     }
   }
 
