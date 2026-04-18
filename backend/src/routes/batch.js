@@ -5,6 +5,20 @@ const { getConnectionById } = require('../db/connections');
 const { logCommand } = require('../db/audit');
 const { SSHSession } = require('../ssh/sshManager');
 
+const MAX_COMMAND_LENGTH = 1000;
+
+function isSafeBatchCommand(command) {
+  if (typeof command !== 'string') return false;
+
+  const trimmed = command.trim();
+  if (!trimmed || trimmed.length > MAX_COMMAND_LENGTH) return false;
+
+  // Disallow shell metacharacters/control chars used for chaining/substitution/redirection.
+  // This allows simple single commands with arguments while blocking common injection vectors.
+  const forbiddenPattern = /[;&|`$<>\n\r\\]|(\|\|)|(&&)|\$\(|\$\{/;
+  return !forbiddenPattern.test(trimmed);
+}
+
 // Batch execute command on multiple connections
 router.post('/execute', authenticateToken, async (req, res) => {
   const { command, connectionIds } = req.body;
@@ -12,8 +26,8 @@ router.post('/execute', authenticateToken, async (req, res) => {
 
   console.log('[BATCH] Execute request:', { command, connectionIds, userId });
 
-  if (!command || typeof command !== 'string' || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
-    return res.status(400).json({ error: 'Command and at least one connection ID required' });
+  if (!isSafeBatchCommand(command) || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
+    return res.status(400).json({ error: 'A safe command and at least one connection ID are required' });
   }
 
   const results = [];
