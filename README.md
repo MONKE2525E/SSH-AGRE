@@ -1,6 +1,6 @@
 # SSH AGRE
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/yourusername/ssh-agre/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/yourusername/SSH-AGRE/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-green)](docker-compose.yml)
 
@@ -196,7 +196,7 @@ docker-compose up -d
 ## Project Structure
 
 ```
-ssh-agre/
+SSH-AGRE/
 ├── backend/
 │   ├── src/
 │   │   ├── db/          # Database operations

@@ -1,5 +1,5 @@
 {
-  "name": "ssh-agre-backend",
+  "name": "SSH-AGRE-BACKEND",
   "version": "0.2.0",
   "description": "SSH AGRE Backend - SSH Connection Management API",
   "main": "src/index.js",
