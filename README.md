@@ -1,6 +1,6 @@
 # SSH AGRE
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/yourusername/ssh-agre/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/yourusername/ssh-agre/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-green)](docker-compose.yml)
 
@@ -31,6 +31,9 @@ For technical details, system structure, and project history, see our [Engineeri
 ## Features
 
 - **Multi-Session Management**: Connect to and manage multiple SSH sessions simultaneously in a tabbed interface
+- **Task Scheduling**: Run commands automatically on a defined schedule with full cron expression support and logging
+- **Batch Execution**: Execute command macros across multiple target servers simultaneously
+- **UI Modernization**: Softened dark theme with elevated panel styling and unified inputs
 - **Session Persistence**: Connections stay alive for 30+ minutes with automatic keep-alive packets
 - **Web-Based Terminal**: Full terminal emulation using xterm.js with 256-color support
 - **Command Library**: Create, edit, and execute predefined command macros
@@ -242,6 +245,14 @@ docker-compose up -d --build
 ```
 
 ## Changelog
+
+### v0.2.0 (2026-04-18)
+- Introduced Task Scheduling (cron jobs, history logs, and status tracking)
+- Added Batch Command Execution capability
+- UI overhaul: Softened dark theme with `--bg-panel` elevated cards and unified form inputs
+- Hid native number spinners for a cleaner UI
+- CI/CD pipeline introduced with GitHub Actions (Node 20.x)
+- Resolved CodeQL and Dependabot security vulnerabilities
 
 ### v0.1.0 (2026-04-06)
 - Initial release
