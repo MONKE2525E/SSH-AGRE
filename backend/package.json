@@ -1,6 +1,6 @@
 {
   "name": "ssh-agre-backend",
-  "version": "0.2.0-beta",
+  "version": "0.2.0",
   "description": "SSH AGRE Backend - SSH Connection Management API",
   "main": "src/index.js",
   "scripts": {

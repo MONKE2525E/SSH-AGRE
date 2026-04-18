@@ -1,6 +1,6 @@
 {
   "name": "ssh-agre",
-  "version": "0.2.0-beta",
+  "version": "0.2.0",
   "dependencies": {
     "node-cron": "^4.2.1"
   }
