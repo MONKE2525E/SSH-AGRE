@@ -8,6 +8,26 @@ A professional SSH aggregation and management platform with a dark industrial de
 
 For technical details, system structure, and project history, see our [Engineering Logs](engineering_logs.md).
 
+## Screenshots
+
+<div align="center">
+  <img src="assets/dashboard.png" alt="Main Dashboard" width="800"/>
+</div>
+
+### Setup Wizard
+
+<p align="center">
+  <img src="assets/setup_welcome.png" alt="Welcome Setup" width="400"/>
+  <img src="assets/setup_account.png" alt="Account Setup" width="400"/>
+</p>
+<p align="center">
+  <img src="assets/setup_connection.png" alt="Connection Setup" width="400"/>
+  <img src="assets/setup_command.png" alt="Command Setup" width="400"/>
+</p>
+<p align="center">
+  <img src="assets/setup_confirmation.png" alt="Setup Confirmation" width="400"/>
+</p>
+
 ## Features
 
 - **Multi-Session Management**: Connect to and manage multiple SSH sessions simultaneously in a tabbed interface
