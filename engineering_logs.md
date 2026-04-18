@@ -49,6 +49,19 @@ SSH AGRE is a web-based SSH connection aggregator designed with a dark industria
 - **Issue**: The Schedules UI was feeling clunky and relied on a hidden dropdown menu for primary actions, diverging from the direct card layout standard.
 - **Fix**: Removed the `ActionMenu` component entirely from `SchedulesPanel`. Replaced it with inline, standard `.btn-secondary` and `.btn-danger` buttons directly visible on each schedule card. Fixed `max-width` on the panel container to properly adhere to the 1200px requirement and removed absolute positioning for cleaner flexbox alignment.
 
+### [2026-04-18] Global UI Modernization & Contrast Adjustment
+- **Issue**: The dark industrial design had stark contrast steps (pure black `--bg-primary` against slightly lighter `--bg-secondary`), making form inputs and nested cards feel harsh.
+- **Fix**: Introduced a new `--bg-panel` (#1a1a1a) CSS variable and applied it globally to form inputs, checkboxes, connection cards, schedule items, and terminal logs to create a softer, elevated appearance. Hidden native number input spinners globally for a cleaner aesthetic.
+
+### [2026-04-18] CI/CD Pipeline & Security Hardening
+- **Issue**: The repository lacked automated testing and was vulnerable to outdated dependencies (Dependabot alerts) and security flaws.
+- **Fix**: 
+  - Created a GitHub Actions CI pipeline (`ci.yml`) to automatically install and build the frontend/backend on every push, exclusively targeting Node 20.x to prevent `crypto` dependency crashes.
+  - Resolved "externally-controlled format string" and "uncontrolled command line" CodeQL alerts in `batch.js` and `scheduler.js` via explicit string formatting and strict type validation.
+  - Implemented `npm overrides` in `frontend/package.json` to forcefully resolve 8 High/Moderate severity Dependabot vulnerabilities buried inside `react-scripts`.
+  - Configured native CodeQL Default Setup and SonarCloud analysis.
+  - Bumped version to `0.2.0-beta`.
+
 ---
 
 ## Technical Debt & Roadmap
