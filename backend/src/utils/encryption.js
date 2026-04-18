@@ -1,20 +1,18 @@
 const crypto = require('crypto');
 
-// Get encryption key from environment or generate a warning
-const ENCRYPTION_KEY = process.env.SSH_KEY_ENCRYPTION_SECRET;
-
-if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
-  console.error('[SECURITY] FATAL: SSH_KEY_ENCRYPTION_SECRET must be set and at least 32 characters');
-  console.error('[SECURITY] Set a secure key: export SSH_KEY_ENCRYPTION_SECRET=$(openssl rand -base64 32)');
-  process.exit(1);
+/**
+ * Derive a 32-byte key from the secret using SHA-256.
+ * Note: We calculate this on each call or once at module load.
+ * We'll use a getter to ensure the secret is loaded before use.
+ */
+function getKey() {
+  const secret = process.env.SSH_KEY_ENCRYPTION_SECRET;
+  if (!secret) {
+    throw new Error('[SECURITY] SSH_KEY_ENCRYPTION_SECRET is not initialized');
+  }
+  return crypto.createHash('sha256').update(secret).digest();
 }
 
-// Derive a 32-byte key from the secret using SHA-256
-const deriveKey = (secret) => {
-  return crypto.createHash('sha256').update(secret).digest();
-};
-
-const KEY = deriveKey(ENCRYPTION_KEY);
 const ALGORITHM = 'aes-256-gcm';
 
 /**
@@ -25,8 +23,9 @@ function encrypt(text) {
   if (!text) return null;
   
   try {
+    const key = getKey();
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
     
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
@@ -51,15 +50,16 @@ function decrypt(encryptedData) {
   try {
     const parts = encryptedData.split(':');
     if (parts.length !== 3) {
-      // Legacy: unencrypted data
+      // Legacy: unencrypted data or incorrect format
       return encryptedData;
     }
     
+    const key = getKey();
     const iv = Buffer.from(parts[0], 'hex');
     const authTag = Buffer.from(parts[1], 'hex');
     const encrypted = parts[2];
     
-    const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
     
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
@@ -67,8 +67,8 @@ function decrypt(encryptedData) {
     
     return decrypted;
   } catch (error) {
-    console.error('[ENCRYPTION] Decryption failed:', error);
-    throw new Error('Failed to decrypt sensitive data - possible tampering');
+    console.error('[ENCRYPTION] Decryption failed:', error.message);
+    throw new Error('Failed to decrypt sensitive data - possible tampering or key mismatch');
   }
 }
 
@@ -76,7 +76,7 @@ function decrypt(encryptedData) {
  * Check if data is already encrypted
  */
 function isEncrypted(data) {
-  if (!data) return false;
+  if (!data || typeof data !== 'string') return false;
   return data.includes(':') && data.split(':').length === 3;
 }
 

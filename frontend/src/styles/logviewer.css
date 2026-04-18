@@ -1,0 +1,105 @@
+/* Full-page terminal container */
+.log-viewer-page {
+  height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header with back button */
+.log-viewer-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-secondary);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.log-viewer-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+  text-align: center;
+}
+
+.header-spacer {
+  width: 140px; /* Match back button width for centering */
+}
+
+/* Terminal container - full width, no padding */
+.terminal-container {
+  flex: 1;
+  padding: 0;
+  overflow-y: auto;
+}
+
+/* Individual log entry */
+.terminal-entry {
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-panel);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px;
+  margin-top: 0;
+}
+
+.terminal-entry:first-child {
+  margin-top: 16px;
+}
+
+.terminal-entry.success {
+  border-left: 4px solid var(--accent-success);
+}
+
+.terminal-entry.error {
+  border-left: 4px solid var(--accent-danger);
+}
+
+/* Meta info row */
+.terminal-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.terminal-status {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.terminal-status.error {
+  color: var(--accent-danger);
+}
+
+.terminal-status.success {
+  color: var(--accent-success);
+}
+
+/* Terminal output - THE KEY STYLES */
+.terminal-output,
+.terminal-error {
+  margin: 0;
+  padding: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  color: #d1d1d1;
+  background: transparent;
+  overflow-x: visible;
+}
+
+.terminal-error {
+  color: #ff6b6b;
+}

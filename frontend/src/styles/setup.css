@@ -129,8 +129,9 @@
 }
 
 .setup-features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 16px;
   margin-bottom: 32px;
   width: 100%;
@@ -147,6 +148,8 @@
   border-radius: 6px;
   border: 1px solid var(--border-primary);
   min-height: 80px;
+  flex: 0 1 calc(33.333% - 16px);
+  min-width: 120px;
 }
 
 .feature span {
@@ -240,7 +243,7 @@
 .setup-step .form-input {
   width: 100%;
   padding: 10px 12px;
-  background: var(--bg-primary);
+  background: var(--bg-panel);
   border: 1px solid var(--border-primary);
   border-radius: 4px;
   color: var(--text-primary);
@@ -290,7 +293,7 @@
   height: 18px;
   border: 1px solid var(--border-primary);
   border-radius: 4px;
-  background: var(--bg-primary);
+  background: var(--bg-panel);
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
@@ -322,49 +325,22 @@
   margin: 0;
 }
 
-.setup-step .form-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-/* Button styles matching dashboard */
+/* Button styles - standardized */
 .setup-step .btn {
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid var(--border-primary);
-  background: var(--bg-elevated);
+  background: transparent;
   color: var(--text-primary);
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.setup-step .btn:hover {
-  background: var(--bg-hover);
-}
-
-.setup-step .btn-primary {
-  background: var(--bg-elevated);
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-.setup-step .btn-primary:hover {
-  background: var(--bg-hover);
-}
-
-.setup-step .btn-secondary {
-  background: transparent;
-  border-color: var(--border-primary);
-  color: var(--text-secondary);
-}
-
-.setup-step .btn-secondary:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-}
 
 .setup-step .btn:disabled {
   opacity: 0.5;

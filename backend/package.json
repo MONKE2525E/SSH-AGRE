@@ -1,6 +1,6 @@
 {
   "name": "ssh-agre-backend",
-  "version": "0.1.0",
+  "version": "0.2.0-beta",
   "description": "SSH AGRE Backend - SSH Connection Management API",
   "main": "src/index.js",
   "scripts": {
@@ -19,7 +19,8 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "express-validator": "^7.0.1",
-    "express-slow-down": "^2.0.3"
+    "express-slow-down": "^2.0.3",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

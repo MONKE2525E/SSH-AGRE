@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const express = require('express');
 const { getUserByUsername, createUser, getAllUsers } = require('../db/users');
 const { validators, handleValidationErrors } = require('../middleware/security');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -192,6 +193,11 @@ router.post('/register', validators.register, handleValidationErrors, async (req
     console.error('[AUTH] Register error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Mark setup as complete
+router.post('/setup-complete', authenticateToken, async (req, res) => {
+  res.json({ success: true });
 });
 
 module.exports = router;

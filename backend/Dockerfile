@@ -13,6 +13,6 @@ COPY src/ ./src/
 # Create data directory
 RUN mkdir -p /app/data
 
-EXPOSE 3001
+EXPOSE 31457
 
 CMD ["node", "src/index.js"]

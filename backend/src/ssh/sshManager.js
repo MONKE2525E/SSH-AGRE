@@ -11,6 +11,9 @@ const activeSessions = new Map();
 const SESSION_TIMEOUT = 30 * 60 * 1000;
 // Keep-alive interval: 30 seconds
 const KEEP_ALIVE_INTERVAL = 30000;
+// Output buffering: max 16KB per flush to prevent UI freezing
+const MAX_BUFFER_SIZE = 16384;
+const FLUSH_INTERVAL = 16; // 60fps equivalent
 
 class SSHSession {
   constructor(sessionId, connectionId, userId) {
@@ -25,6 +28,10 @@ class SSHSession {
     this.timeoutTimer = null;
     this.connected = false;
     this.connectionInfo = null;
+    // Output buffering for high-speed data
+    this.outputBuffer = '';
+    this.flushTimer = null;
+    this.bufferLock = false;
   }
 
   async connect(ws) {
@@ -65,11 +72,27 @@ class SSHSession {
           this.startKeepAlive();
           this.startTimeoutCheck();
           
-          // Open shell session with 256-color terminal type
+          // Open shell session with 256-color terminal type and TUI support
           this.client.shell({
             term: 'xterm-256color',
             cols: 80,
-            rows: 24
+            rows: 24,
+            env: {
+              TERM: 'xterm-256color',
+              COLORTERM: 'truecolor',
+              LANG: 'en_US.UTF-8',
+              LC_ALL: 'en_US.UTF-8',
+              PYTHONUNBUFFERED: '1',
+              PYTHONIOENCODING: 'utf-8',
+              DOCKER_CLI_HINTS: 'false',
+              // Force interactive mode for TUIs
+              FORCE_COLOR: '1',
+              // Prevent tools from using alternate screen buffer in problematic ways
+              LESS: '-R -X',
+              // Ensure proper terminal behavior
+              EDITOR: 'nano',
+              PAGER: 'less'
+            }
           }, (err, stream) => {
             if (err) {
               reject(err);
@@ -103,16 +126,61 @@ class SSHSession {
   }
 
   setupStreamHandlers() {
+    // Buffer management for high-output scenarios
+    this.flushOutput = () => {
+      if (this.bufferLock || !this.outputBuffer) return;
+      
+      this.bufferLock = true;
+      const dataToSend = this.outputBuffer;
+      this.outputBuffer = '';
+      
+      try {
+        this.sendToClient({ 
+          type: 'data', 
+          data: dataToSend 
+        });
+      } catch (err) {
+        console.error(`[SSH] Failed to send data: ${this.sessionId}`, err);
+        // Re-buffer on failure
+        this.outputBuffer = dataToSend + this.outputBuffer;
+      }
+      
+      this.bufferLock = false;
+    };
+
     this.stream.on('data', (data) => {
       this.updateActivity();
-      this.sendToClient({ 
-        type: 'data', 
-        data: data.toString('utf-8') 
-      });
+      
+      // Convert buffer to string
+      const dataStr = data.toString('utf-8');
+      
+      // Add to buffer
+      this.outputBuffer += dataStr;
+      
+      // If buffer exceeds max size, flush immediately
+      if (this.outputBuffer.length >= MAX_BUFFER_SIZE) {
+        if (this.flushTimer) {
+          clearTimeout(this.flushTimer);
+          this.flushTimer = null;
+        }
+        this.flushOutput();
+      } else if (!this.flushTimer) {
+        // Schedule flush for next frame
+        this.flushTimer = setTimeout(() => {
+          this.flushTimer = null;
+          this.flushOutput();
+        }, FLUSH_INTERVAL);
+      }
     });
 
     this.stream.on('close', () => {
       console.log(`[SSH] Stream closed: ${this.sessionId}`);
+      // Flush remaining data before closing
+      if (this.flushTimer) {
+        clearTimeout(this.flushTimer);
+        this.flushTimer = null;
+      }
+      this.flushOutput();
       this.sendToClient({ type: 'disconnected' });
       this.cleanup();
     });
@@ -201,6 +269,21 @@ class SSHSession {
       clearInterval(this.timeoutTimer);
       this.timeoutTimer = null;
     }
+    
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    
+    // Flush any remaining output
+    if (this.outputBuffer && this.ws && this.ws.readyState === 1) {
+      try {
+        this.ws.send(JSON.stringify({ type: 'data', data: this.outputBuffer }));
+      } catch (err) {
+        console.error(`[SSH] Failed to flush final buffer: ${this.sessionId}`, err);
+      }
+    }
+    this.outputBuffer = '';
     
     if (this.stream) {
       this.stream.close();

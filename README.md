@@ -6,6 +6,8 @@
 
 A professional SSH aggregation and management platform with a dark industrial design. Manage multiple SSH connections simultaneously through a web-based interface with persistent sessions, command automation, and role-based user management.
 
+For technical details, system structure, and project history, see our [Engineering Logs](engineering_logs.md).
+
 ## Features
 
 - **Multi-Session Management**: Connect to and manage multiple SSH sessions simultaneously in a tabbed interface

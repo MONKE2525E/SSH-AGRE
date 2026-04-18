@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config';
+import ScheduleModal from './ScheduleModal';
+import SchedulesPanel from './SchedulesPanel';
+import '../styles/schedules.css';
 
 function ProfileModal({ onClose }) {
   const { user, logout } = useAuth();
@@ -17,6 +20,13 @@ function ProfileModal({ onClose }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Scheduling state
+  const [schedules, setSchedules] = useState([]);
+  const [connections, setConnections] = useState([]);
+  const [commands, setCommands] = useState([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState(null);
 
   useEffect(() => {
     fetchProfile();
@@ -285,6 +295,187 @@ function ProfileModal({ onClose }) {
     setActiveTab(tab);
     setError('');
     setMessage('');
+    
+    // Load schedule data when switching to schedules tab
+    if (tab === 'schedules') {
+      fetchSchedules();
+      fetchConnectionsForScheduling();
+      fetchCommandsForScheduling();
+    }
+  };
+
+  const fetchSchedules = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/schedules`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSchedules(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch schedules:', error);
+    }
+  };
+
+  const fetchConnectionsForScheduling = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/connections`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setConnections(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch connections:', error);
+    }
+  };
+
+  const fetchCommandsForScheduling = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/commands`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCommands(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch commands:', error);
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId) => {
+    if (!window.confirm('Delete this schedule?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/schedules/${scheduleId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        setSchedules(schedules.filter(s => s.id !== scheduleId));
+        setMessage('Schedule deleted successfully');
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Failed to delete schedule');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleToggleSchedule = async (schedule) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/schedules/${schedule.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_enabled: !schedule.is_enabled })
+      });
+
+      if (response.ok) {
+        setSchedules(schedules.map(s => 
+          s.id === schedule.id ? { ...s, is_enabled: !s.is_enabled } : s
+        ));
+        setMessage(`Schedule ${schedule.is_enabled ? 'disabled' : 'enabled'}`);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleRunSchedule = async (schedule) => {
+    try {
+      const token = localStorage.getItem('token');
+      setLoading(true);
+      
+      const response = await fetch(`${API_URL}/api/schedules/${schedule.id}/run`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to start execution');
+      }
+      
+      setMessage('Schedule execution started');
+      
+      // Delay fetch slightly to allow first execution history to save
+      setTimeout(() => {
+        fetchSchedules();
+      }, 2000);
+      
+    } catch (err) {
+      setError('Failed to run schedule: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloneSchedule = async (schedule) => {
+    try {
+      const token = localStorage.getItem('token');
+      const newSchedule = {
+        name: `${schedule.name} (Copy)`,
+        commands: schedule.commands || [{ command: schedule.command, delay: 0 }],
+        connection_ids: schedule.connection_ids,
+        cron_expression: schedule.cron_expression,
+        is_enabled: false, // Clone as disabled by default
+        failure_strategy: schedule.failure_strategy,
+        retry_count: schedule.retry_count
+      };
+      
+      const response = await fetch(`${API_URL}/api/schedules`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newSchedule)
+      });
+
+      if (response.ok) {
+        const saved = await response.json();
+        setSchedules([...schedules, saved]);
+        setMessage('Schedule cloned successfully');
+      }
+    } catch (err) {
+      setError('Failed to clone schedule: ' + err.message);
+    }
+  };
+
+  const handleSaveSchedule = (savedSchedule) => {
+    if (editingSchedule) {
+      setSchedules(schedules.map(s => s.id === savedSchedule.id ? savedSchedule : s));
+    } else {
+      setSchedules([...schedules, savedSchedule]);
+    }
+    setShowScheduleModal(false);
+    setEditingSchedule(null);
+    setMessage('Schedule saved successfully');
+  };
+
+  const openNewSchedule = () => {
+    setEditingSchedule(null);
+    setShowScheduleModal(true);
+  };
+
+  const openEditSchedule = (schedule) => {
+    setEditingSchedule(schedule);
+    setShowScheduleModal(true);
   };
 
   return (
@@ -301,6 +492,9 @@ function ProfileModal({ onClose }) {
           </button>
           <button className={`profile-tab ${activeTab === 'security' ? 'active' : ''}`} onClick={() => switchTab('security')}>
             Security
+          </button>
+          <button className={`profile-tab ${activeTab === 'schedules' ? 'active' : ''}`} onClick={() => switchTab('schedules')}>
+            Schedules
           </button>
           {user?.isAdmin && (
             <>
@@ -465,6 +659,20 @@ function ProfileModal({ onClose }) {
             </>
           )}
 
+          {activeTab === 'schedules' && (
+            <SchedulesPanel 
+              schedules={schedules}
+              connections={connections}
+              onNewSchedule={openNewSchedule}
+              onEditSchedule={openEditSchedule}
+              onToggleSchedule={handleToggleSchedule}
+              onDeleteSchedule={handleDeleteSchedule}
+              onRunSchedule={handleRunSchedule}
+              onCloneSchedule={handleCloneSchedule}
+              loading={loading}
+            />
+          )}
+
           {activeTab === 'users' && user?.isAdmin && (
             <div className="users-list">
               <div style={{marginBottom: '16px'}}>
@@ -479,8 +687,11 @@ function ProfileModal({ onClose }) {
                   <div key={u.id} className="user-item" style={{
                     display: 'flex', 
                     alignItems: 'center', 
-                    padding: '12px', 
-                    borderBottom: '1px solid var(--border-primary)',
+                    padding: '16px', 
+                    backgroundColor: 'var(--bg-panel)',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    marginBottom: '12px',
                     gap: '12px'
                   }}>
                     <div style={{flex: 1}}>
@@ -532,8 +743,11 @@ function ProfileModal({ onClose }) {
                   <div key={u.id} className="user-item" style={{
                     display: 'flex', 
                     alignItems: 'center', 
-                    padding: '12px', 
-                    borderBottom: '1px solid var(--border-primary)',
+                    padding: '16px', 
+                    backgroundColor: 'var(--bg-panel)',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    marginBottom: '12px',
                     gap: '12px'
                   }}>
                     <div style={{flex: 1}}>
@@ -567,6 +781,19 @@ function ProfileModal({ onClose }) {
           )}
         </div>
       </div>
+
+      {showScheduleModal && (
+        <ScheduleModal
+          schedule={editingSchedule}
+          connections={connections}
+          commands={commands}
+          onClose={() => {
+            setShowScheduleModal(false);
+            setEditingSchedule(null);
+          }}
+          onSave={handleSaveSchedule}
+        />
+      )}
     </div>
   );
 }

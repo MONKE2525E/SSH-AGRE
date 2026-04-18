@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { createSession, getSession, endSession, activeSessions } = require('../ssh/sshManager');
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
 // SECURITY: Ensure JWT_SECRET is set
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
@@ -10,7 +11,26 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 }
 
 function setupWebSocket(wss) {
+  // Set up heartbeat interval
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        console.log('[WS] Terminating stale connection');
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, HEARTBEAT_INTERVAL);
+
+  wss.on('close', () => {
+    clearInterval(interval);
+  });
+
   wss.on('connection', (ws, req) => {
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
     console.log('[WS] New WebSocket connection attempt');
     
     // Extract token from query parameters
@@ -57,6 +77,13 @@ function setupWebSocket(wss) {
               }
               
               currentSession = createSession(parseInt(data.connectionId), user.userId);
+              
+              // Send initial environment info to client
+              ws.send(JSON.stringify({ 
+                type: 'info', 
+                message: 'Connecting with TUI support enabled (TERM=xterm-256color, PYTHONUNBUFFERED=1)'
+              }));
+              
               await currentSession.connect(ws);
             } catch (error) {
               console.error('[WS] SSH connection error:', error);

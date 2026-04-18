@@ -108,10 +108,102 @@ function initDatabase() {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
+      `);
+
+      // Scheduled commands table with structured scheduling
+      database.run(`
+        CREATE TABLE IF NOT EXISTS schedules (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          commands TEXT NOT NULL,
+          cron_expression TEXT NOT NULL,
+          connection_ids TEXT NOT NULL,
+          is_enabled BOOLEAN DEFAULT 1,
+          last_run DATETIME,
+          next_run DATETIME,
+          failure_strategy TEXT DEFAULT 'continue',
+          retry_count INTEGER DEFAULT 0,
+          schedule_config TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `, (err) => {
+        if (err) {
+          console.error('[DB] Error creating schedules table:', err.message);
+          return;
+        }
+        
+        console.log('[DB] Schedules table ready, running migrations...');
+        
+        // Migration: Add new columns if they don't exist
+        database.serialize(() => {
+          database.run(`ALTER TABLE schedules ADD COLUMN commands TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+              console.error('[DB] Migration commands error:', err.message);
+            } else if (!err) {
+              console.log('[DB] Migration: commands column added');
+            }
+          });
+          
+          database.run(`ALTER TABLE schedules ADD COLUMN failure_strategy TEXT DEFAULT 'continue'`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+              console.error('[DB] Migration failure_strategy error:', err.message);
+            } else if (!err) {
+              console.log('[DB] Migration: failure_strategy column added');
+            }
+          });
+          
+          database.run(`ALTER TABLE schedules ADD COLUMN retry_count INTEGER DEFAULT 0`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+              console.error('[DB] Migration retry_count error:', err.message);
+            } else if (!err) {
+              console.log('[DB] Migration: retry_count column added');
+            }
+          });
+
+          database.run(`ALTER TABLE schedules ADD COLUMN timeout_seconds INTEGER DEFAULT 3600`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+              console.error('[DB] Migration timeout_seconds error:', err.message);
+            } else if (!err) {
+              console.log('[DB] Migration: timeout_seconds column added');
+            }
+          });
+          
+          database.run(`ALTER TABLE schedules ADD COLUMN schedule_config TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+              console.error('[DB] Migration schedule_config error:', err.message);
+            } else if (!err) {
+              console.log('[DB] Migration: schedule_config column added');
+            }
+          });
+        });
+      });
+
+      // Schedule execution history
+      database.run(`
+        CREATE TABLE IF NOT EXISTS schedule_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          schedule_id INTEGER NOT NULL,
+          connection_id INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          output TEXT,
+          error TEXT,
+          executed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE,
+          FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE
+        )
       `, (err) => {
         if (err) {
           reject(err);
         } else {
+          // Add indexes for performance
+          database.run('CREATE INDEX IF NOT EXISTS idx_schedules_user_id ON schedules(user_id)');
+          database.run('CREATE INDEX IF NOT EXISTS idx_connections_user_id ON connections(user_id)');
+          database.run('CREATE INDEX IF NOT EXISTS idx_schedule_history_schedule_id ON schedule_history(schedule_id)');
+          database.run('CREATE INDEX IF NOT EXISTS idx_command_audit_user_id ON command_audit_log(user_id)');
+          
           resolve();
         }
       });

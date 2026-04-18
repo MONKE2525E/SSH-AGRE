@@ -8,13 +8,25 @@ const {
   updateConnection, 
   deleteConnection 
 } = require('../db/connections');
+const { getAllHealthStatuses } = require('../utils/healthCheck');
 
 const router = express.Router();
+
+// Get connection health statuses
+router.get('/status', authenticateToken, async (req, res) => {
+  try {
+    const statuses = getAllHealthStatuses();
+    res.json(statuses);
+  } catch (error) {
+    console.error('[CONNECTIONS] Get statuses error:', error);
+    res.status(500).json({ error: 'Failed to retrieve statuses' });
+  }
+});
 
 // Get all connections for the authenticated user
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const connections = await getUserConnections(req.user.userId);
+    const connections = await getUserConnections(req.user.userId || req.user.id);
     res.json(connections);
   } catch (error) {
     console.error('[CONNECTIONS] Get connections error:', error);
@@ -35,11 +47,11 @@ router.post('/', authenticateToken, validators.connection, handleValidationError
       return res.status(400).json({ error: 'Private key is required for key authentication' });
     }
     
-    if (!useKeyAuth && !password) {
+    if (!useKeyAuth && password === undefined) {
       return res.status(400).json({ error: 'Password is required for password authentication' });
     }
     
-    const connection = await createConnection(req.user.userId, {
+    const connection = await createConnection(req.user.userId || req.user.id, {
       name,
       host,
       port,
@@ -69,15 +81,20 @@ router.put('/:id', authenticateToken, validators.connection, handleValidationErr
       return res.status(400).json({ error: 'Name, host, and username are required' });
     }
     
-    await updateConnection(connectionId, req.user.userId, {
+    // Only include password in update if it's provided (allows empty string for "enter later")
+    const updateData = {
       name,
       host,
       port,
       username,
-      password,
       privateKey,
       useKeyAuth
-    });
+    };
+    if (password !== undefined) {
+      updateData.password = password;
+    }
+    
+    await updateConnection(connectionId, req.user.userId || req.user.id, updateData);
     
     res.json({ success: true });
   } catch (error) {
@@ -93,7 +110,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     if (isNaN(connectionId) || connectionId <= 0) {
       return res.status(400).json({ error: 'Invalid connection ID' });
     }
-    await deleteConnection(connectionId, req.user.userId);
+    await deleteConnection(connectionId, req.user.userId || req.user.id);
     res.json({ success: true });
   } catch (error) {
     console.error('[CONNECTIONS] Delete connection error:', error);

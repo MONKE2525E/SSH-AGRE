@@ -58,7 +58,7 @@
 
 .form-group input {
   padding: 10px 12px;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   color: var(--text-primary);
@@ -96,7 +96,7 @@
 }
 
 .btn-primary:hover {
-  background-color: #666666;
+  background-color: var(--bg-hover);
 }
 
 .btn-primary:disabled {

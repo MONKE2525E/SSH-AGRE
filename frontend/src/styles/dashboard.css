@@ -37,25 +37,19 @@
 }
 
 .toggle-btn {
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   transition: all 0.2s;
-}
-
-.toggle-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toggle-btn.active {
-  background-color: var(--bg-elevated);
-  color: var(--text-primary);
-  border-color: var(--accent-primary);
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-secondary) !important;
 }
 
 .header-right {
@@ -81,8 +75,23 @@
 }
 
 .logout-btn {
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
 }
 
 /* Main Layout */
@@ -204,6 +213,11 @@
   box-shadow: 0 0 4px var(--accent-success);
 }
 
+.connection-status.offline {
+  background-color: var(--accent-danger);
+  box-shadow: 0 0 4px var(--accent-danger);
+}
+
 .connection-status.disconnected {
   background-color: var(--text-muted);
 }
@@ -247,10 +261,12 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 4px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .command-item:hover {
@@ -288,6 +304,83 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Batch Execution Styles - Monochrome */
+.command-item.batch-active .command-icon,
+.command-item.batch-active .command-icon:active,
+.command-item.batch-active .command-icon:hover {
+  color: var(--text-primary) !important;
+  font-weight: bold;
+  filter: grayscale(100%) !important;
+  transition: none;
+}
+
+.batch-toggle {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.batch-toggle:hover {
+  transform: scale(1.1);
+  color: var(--text-primary);
+}
+
+.connection-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-primary);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.connection-checkbox.checked {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: white;
+}
+
+.connection-item.selected {
+  background-color: rgba(56, 139, 253, 0.15);
+}
+
+.batch-execute-bar {
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.batch-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.batch-send-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 13px;
+}
+
+.batch-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.batch-cancel-btn {
+  width: 100%;
+  padding: 8px;
+  font-size: 12px;
 }
 
 /* Empty State */
@@ -332,16 +425,17 @@
 
 .modal-content {
   position: fixed;
-  top: 80px;
+  top: 60px;
   left: 50%;
   transform: translateX(-50%);
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
-  width: 90%;
-  max-width: 480px;
-  height: 500px;
-  max-height: calc(100vh - 160px);
+  width: 95%;
+  max-width: 520px;
+  height: auto;
+  min-height: 200px;
+  max-height: calc(100vh - 80px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -378,7 +472,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border-primary);
 }
 
@@ -406,9 +500,9 @@
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 24px;
   overflow-y: auto;
-  max-height: 60vh;
+  max-height: 85vh;
   min-height: 320px;
 }
 
@@ -416,23 +510,40 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 16px 24px;
   border-top: 1px solid var(--border-primary);
   background-color: var(--bg-secondary);
 }
 
 /* Form Elements */
+.form-input {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  width: 100%;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--text-secondary);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 18px;
 }
 
 .checkbox-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 18px;
+  margin-bottom: 18px;
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -453,16 +564,14 @@ textarea.form-input {
   font-size: 12px;
 }
 
-.form-hint {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
 /* Settings Modal - Fixed Layout */
-.settings-modal {
+.modal-content.settings-modal {
   display: flex;
   flex-direction: column;
+  height: auto;
+  max-height: 85vh;
+  width: 100%;
+  max-width: 600px;
 }
 
 .settings-modal .modal-header {
@@ -479,9 +588,10 @@ textarea.form-input {
 }
 
 .settings-body {
-  padding: 20px;
+  padding: 24px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .settings-modal .modal-footer {

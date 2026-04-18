@@ -16,14 +16,17 @@ const authLimiter = rateLimit({
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes
   delayAfter: 2, // allow 2 requests at full speed
-  delayMs: 500, // add 500ms delay per request after delayAfter
+  delayMs: (used, req) => {
+    const delayAfter = req.slowDown.limit;
+    return (used - delayAfter) * 500;
+  },
   maxDelayMs: 5000, // maximum delay of 5 seconds
 });
 
-// General API rate limiter (50 per minute)
+// General API rate limiter (150 per minute)
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 50,
+  max: 150,
   message: { error: 'Too many requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

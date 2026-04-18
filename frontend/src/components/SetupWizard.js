@@ -67,6 +67,7 @@ function SetupWizard({ onComplete }) {
     }
 
     setLoading(true);
+    console.log('[SETUP] Creating admin account:', { username: adminForm.username, name: adminForm.name || adminForm.username });
     try {
       const response = await fetch(`${API_URL}/api/auth/setup`, {
         method: 'POST',
@@ -78,9 +79,12 @@ function SetupWizard({ onComplete }) {
         })
       });
 
+      console.log('[SETUP] Response status:', response.status);
       const data = await response.json();
+      console.log('[SETUP] Response data:', data);
+
       if (!response.ok) {
-        throw new Error(data.error || 'Setup failed');
+        throw new Error(data.error || `Setup failed (${response.status})`);
       }
 
       localStorage.setItem('token', data.token);
@@ -88,7 +92,8 @@ function SetupWizard({ onComplete }) {
       setUser(data.user);
       setStep(2);
     } catch (err) {
-      setError(err.message);
+      console.error('[SETUP] Create admin error:', err);
+      setError(`Failed to create account: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -215,6 +220,12 @@ function SetupWizard({ onComplete }) {
               </div>
               <div className="feature">
                 <span>Full terminal support</span>
+              </div>
+              <div className="feature">
+                <span>Batch commands</span>
+              </div>
+              <div className="feature">
+                <span>Scheduled tasks</span>
               </div>
             </div>
             <button className="btn btn-primary btn-large" onClick={() => setStep(1)}>

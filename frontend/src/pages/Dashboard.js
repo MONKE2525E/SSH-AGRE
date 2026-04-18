@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config';
 import Terminal from '../components/Terminal';
@@ -8,7 +8,7 @@ import ProfileModal from '../components/ProfileModal';
 import '../styles/dashboard.css';
 
 function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [connections, setConnections] = useState([]);
   const [commands, setCommands] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
@@ -20,73 +20,32 @@ function Dashboard() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingConnection, setEditingConnection] = useState(null);
   const [editingCommand, setEditingCommand] = useState(null);
+  const [connectionHealth, setConnectionHealth] = useState({});
+  
+  // Batch execution state
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedConnections, setSelectedConnections] = useState([]);
+  const [pendingCommand, setPendingCommand] = useState(null);
 
-  // Fetch connections and commands on load
-  useEffect(() => {
-    fetchConnections();
-    fetchCommands();
-    // Add Testing connection for 192.168.0.28 after a short delay
-    const timer = setTimeout(() => {
-      addTestingConnection();
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  // Use refs for persistent values that don't trigger re-renders
+  const timersRef = useRef([]);
 
-  // Add Testing connection for local development
-  const addTestingConnection = async () => {
+  const fetchConnectionStatuses = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      // Check if Testing connection already exists
-      const response = await fetch(`${API_URL}/api/connections`, {
+      const response = await fetch(`${API_URL}/api/connections/status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
-        const connections = await response.json();
-        const existingTest = connections.find(c => c.name === 'Testing');
-        if (existingTest) {
-          // Auto-connect to existing Testing connection
-          handleConnect({
-            id: existingTest.id,
-            name: existingTest.name,
-            host: existingTest.host,
-            port: existingTest.port,
-            username: existingTest.username
-          });
-          return;
-        }
-        
-        // Create Testing connection
-        const createResponse = await fetch(`${API_URL}/api/connections`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            name: 'Testing',
-            host: '192.168.0.28',
-            port: 22,
-            username: 'noah',
-            password: '', // Will need to be entered manually
-            useKeyAuth: false
-          })
-        });
-        
-        if (createResponse.ok) {
-          const newConnection = await createResponse.json();
-          await fetchConnections();
-          // Auto-connect to the new Testing connection
-          setTimeout(() => {
-            handleConnect(newConnection);
-          }, 500);
-        }
+        const data = await response.json();
+        setConnectionHealth(data);
       }
     } catch (error) {
-      console.error('Failed to add Testing connection:', error);
+      console.error('Failed to fetch connection statuses:', error);
     }
-  };
+  }, []);
 
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/connections`, {
@@ -99,9 +58,9 @@ function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch connections:', error);
     }
-  };
+  }, []);
 
-  const fetchCommands = async () => {
+  const fetchCommands = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/commands`, {
@@ -114,63 +73,211 @@ function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch commands:', error);
     }
-  };
+  }, []);
 
-  const handleConnect = (connection) => {
-    // Check if already connected
-    const existingSession = activeSessions.find(s => s.connectionId === connection.id);
-    if (existingSession) {
-      setCurrentSessionId(existingSession.id);
-      return;
-    }
+  // Fetch connections and commands on load
+  useEffect(() => {
+    fetchConnections();
+    fetchCommands();
+    fetchConnectionStatuses();
 
-    // Create new session
-    const newSession = {
-      id: `session-${Date.now()}`,
-      connectionId: connection.id,
-      connectionName: connection.name,
-      connectionHost: `${connection.username}@${connection.host}:${connection.port}`,
-      status: 'connecting'
+    // Poll health statuses every 2 minutes
+    const healthInterval = setInterval(fetchConnectionStatuses, 120000);
+    
+    return () => {
+      clearInterval(healthInterval);
+      // Clean up any remaining timers
+      timersRef.current.forEach(clearTimeout);
     };
-    setActiveSessions(prev => [...prev, newSession]);
-    setCurrentSessionId(newSession.id);
-  };
+  }, [fetchConnections, fetchCommands, fetchConnectionStatuses]);
 
-  const handleDisconnect = (sessionId) => {
-    setActiveSessions(prev => prev.filter(s => s.id !== sessionId));
-    if (currentSessionId === sessionId) {
-      const remaining = activeSessions.filter(s => s.id !== sessionId);
-      setCurrentSessionId(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
-    }
-  };
+  const handleConnect = useCallback((connection) => {
+    setActiveSessions(prev => {
+      // Check if already connected
+      const existingSession = prev.find(s => s.connectionId === connection.id);
+      if (existingSession) {
+        setCurrentSessionId(existingSession.id);
+        return prev;
+      }
 
-  const handleSessionStatusChange = (sessionId, status) => {
+      // Create new session
+      const newSession = {
+        id: `session-${Date.now()}`,
+        connectionId: connection.id,
+        connectionName: connection.name,
+        connectionHost: `${connection.username}@${connection.host}:${connection.port}`,
+        status: 'connecting'
+      };
+      setCurrentSessionId(newSession.id);
+      return [...prev, newSession];
+    });
+  }, []);
+
+  const handleDisconnect = useCallback((sessionId) => {
+    setActiveSessions(prev => {
+      const filtered = prev.filter(s => s.id !== sessionId);
+      if (currentSessionId === sessionId) {
+        setCurrentSessionId(filtered.length > 0 ? filtered[filtered.length - 1].id : null);
+      }
+      return filtered;
+    });
+  }, [currentSessionId]);
+
+  const handleSessionStatusChange = useCallback((sessionId, status) => {
     setActiveSessions(prev => prev.map(s => 
       s.id === sessionId ? { ...s, status } : s
     ));
-  };
+  }, []);
 
   const handleRunCommand = useCallback((command) => {
-    console.log('[Dashboard] handleRunCommand called:', command);
-    if (!currentSessionId) {
-      console.log('[Dashboard] No current session');
-      return;
-    }
+    if (!currentSessionId) return;
     const terminal = document.getElementById(`terminal-${currentSessionId}`);
-    console.log('[Dashboard] Found terminal element:', terminal?.id);
     if (terminal) {
       const event = new CustomEvent('run-command', { detail: command.command, bubbles: true });
-      console.log('[Dashboard] Dispatching event to', terminal.id);
       terminal.dispatchEvent(event);
     }
   }, [currentSessionId]);
 
-  const handleEditConnection = (connection) => {
-    setEditingConnection(connection);
-    setShowConnectionModal(true);
+  // Batch execution handlers
+  const toggleBatchMode = useCallback((command) => {
+    setBatchMode(prev => {
+      if (prev && pendingCommand?.id === command.id) {
+        setPendingCommand(null);
+        setSelectedConnections([]);
+        return false;
+      }
+      setPendingCommand(command);
+      setSelectedConnections([]);
+      return true;
+    });
+  }, [pendingCommand]);
+
+  const toggleConnectionSelection = useCallback((connId) => {
+    setSelectedConnections(prev => 
+      prev.includes(connId) 
+        ? prev.filter(id => id !== connId)
+        : [...prev, connId]
+    );
+  }, []);
+
+  const executeBatch = async () => {
+    if (!pendingCommand || selectedConnections.length === 0) return;
+
+    const results = [];
+    const command = pendingCommand.command;
+
+    // First pass: ensure all connections are opened
+    const sessionIdsToWaitFor = [];
+    
+    for (const connId of selectedConnections) {
+      const connection = connections.find(c => c.id === connId);
+      if (!connection) {
+        results.push({ connectionId: connId, status: 'error', message: 'Connection not found' });
+        continue;
+      }
+
+      // Check if already connected
+      let session = activeSessions.find(s => s.connectionId === connId);
+
+      if (!session) {
+        // Create new session
+        const sessionId = `session-${Date.now()}-${connId}`;
+        const newSession = {
+          id: sessionId,
+          connectionId: connId,
+          connectionName: connection.name,
+          connectionHost: `${connection.username}@${connection.host}:${connection.port}`,
+          status: 'connecting'
+        };
+        setActiveSessions(prev => [...prev, newSession]);
+        sessionIdsToWaitFor.push({ sessionId, connId, connection });
+      } else {
+        // Already has a session, just need to wait for it to be connected
+        if (session.status === 'connected') {
+          const terminal = document.getElementById(`terminal-${session.id}`);
+          if (terminal) {
+            terminal.setAttribute('data-pending-command', command);
+            window.dispatchEvent(new CustomEvent('check-pending-command', { 
+              detail: { sessionId: session.id, command }
+            }));
+
+            let ready = false;
+            const onReady = () => { ready = true; };
+            terminal.addEventListener('terminal-ready', onReady, { once: true });
+            
+            let readyAttempts = 0;
+            while (!ready && readyAttempts < 40) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              readyAttempts++;
+            }
+            terminal.removeEventListener('terminal-ready', onReady);
+
+            if (!ready) {
+              results.push({ connectionId: connId, status: 'error', message: 'Terminal connection timed out' });
+              continue;
+            }
+            results.push({ connectionId: connId, status: 'success', connectionName: connection.name });
+          }
+        } else {
+          sessionIdsToWaitFor.push({ sessionId: session.id, connId, connection });
+        }
+      }
+    }
+
+    // Wait for new terminals
+    for (const { sessionId, connId } of sessionIdsToWaitFor) {
+      try {
+        let terminal = null;
+        let attempts = 0;
+        while (!terminal && attempts < 50) {
+          terminal = document.getElementById(`terminal-${sessionId}`);
+          if (!terminal) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
+          }
+        }
+
+        if (terminal) {
+          terminal.setAttribute('data-pending-command', command);
+          window.dispatchEvent(new CustomEvent('check-pending-command', { 
+            detail: { sessionId, command },
+            bubbles: true 
+          }));
+
+          let ready = false;
+          const onReady = () => { ready = true; };
+          terminal.addEventListener('terminal-ready', onReady, { once: true });
+          
+          let readyAttempts = 0;
+          while (!ready && readyAttempts < 40) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            readyAttempts++;
+          }
+          terminal.removeEventListener('terminal-ready', onReady);
+
+          if (!ready) {
+            results.push({ connectionId: connId, status: 'error', message: 'Terminal connection timed out' });
+            continue;
+          }
+          results.push({ connectionId: connId, status: 'success' });
+        }
+      } catch (error) {
+        results.push({ connectionId: connId, status: 'error', message: 'Failed to execute command' });
+      }
+    }
+
+    alert(`Batch execution complete: ${results.filter(r => r.status === 'success').length} succeeded`);
+    setBatchMode(false);
+    setSelectedConnections([]);
+    setPendingCommand(null);
   };
 
-  const handleDeleteConnection = async (connectionId) => {
+  const handleEditConnection = useCallback((connection) => {
+    setEditingConnection(connection);
+    setShowConnectionModal(true);
+  }, []);
+
+  const handleDeleteConnection = useCallback(async (connectionId) => {
     if (!window.confirm('Delete this connection?')) return;
     try {
       const token = localStorage.getItem('token');
@@ -184,14 +291,14 @@ function Dashboard() {
     } catch (error) {
       console.error('Failed to delete connection:', error);
     }
-  };
+  }, [fetchConnections]);
 
-  const handleEditCommand = (command) => {
+  const handleEditCommand = useCallback((command) => {
     setEditingCommand(command);
     setShowCommandModal(true);
-  };
+  }, []);
 
-  const handleDeleteCommand = async (commandId) => {
+  const handleDeleteCommand = useCallback(async (commandId) => {
     if (!window.confirm('Delete this command macro?')) return;
     try {
       const token = localStorage.getItem('token');
@@ -205,14 +312,15 @@ function Dashboard() {
     } catch (error) {
       console.error('Failed to delete command:', error);
     }
-  };
+  }, [fetchCommands]);
 
-  const activeConnections = connections.filter(c => 
+  const activeConnections = useMemo(() => connections.filter(c => 
     activeSessions.some(s => s.connectionId === c.id)
-  );
-  const inactiveConnections = connections.filter(c => 
+  ), [connections, activeSessions]);
+
+  const inactiveConnections = useMemo(() => connections.filter(c => 
     !activeSessions.some(s => s.connectionId === c.id)
-  );
+  ), [connections, activeSessions]);
 
   return (
     <div className="dashboard">
@@ -221,14 +329,14 @@ function Dashboard() {
           <span className="header-logo">SSH AGRE</span>
           <div className="header-toggle">
             <button 
-              className={`toggle-btn ${leftSidebarOpen ? 'active' : ''}`}
+              className={`btn btn-secondary toggle-btn ${leftSidebarOpen ? 'active' : ''}`}
               onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
               title="Toggle Connection Panel"
             >
               Connections
             </button>
             <button 
-              className={`toggle-btn ${rightSidebarOpen ? 'active' : ''}`}
+              className={`btn btn-secondary toggle-btn ${rightSidebarOpen ? 'active' : ''}`}
               onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
               title="Toggle Command Panel"
             >
@@ -274,13 +382,20 @@ function Dashboard() {
                 <div className="sidebar-title" style={{padding: '8px 8px 4px'}}>Active</div>
                 {activeConnections.map(conn => {
                   const session = activeSessions.find(s => s.connectionId === conn.id);
+                  const isSelected = selectedConnections.includes(conn.id);
                   return (
                     <div 
                       key={conn.id}
-                      className={`connection-item ${currentSessionId === session?.id ? 'active' : ''}`}
-                      onClick={() => setCurrentSessionId(session?.id)}
+                      className={`connection-item ${currentSessionId === session?.id ? 'active' : ''} ${isSelected ? 'selected' : ''}`}
+                      onClick={() => batchMode ? toggleConnectionSelection(conn.id) : setCurrentSessionId(session?.id)}
                     >
-                      <div className="connection-status connected"></div>
+                      {batchMode ? (
+                        <div className={`connection-checkbox ${isSelected ? 'checked' : ''}`}>
+                          {isSelected ? '✓' : ''}
+                        </div>
+                      ) : (
+                        <div className="connection-status connected"></div>
+                      )}
                       <div className="connection-info">
                         <div className="connection-name">{conn.name}</div>
                         <div className="connection-host">{conn.host}</div>
@@ -304,29 +419,41 @@ function Dashboard() {
             {inactiveConnections.length > 0 && (
               <>
                 <div className="sidebar-title" style={{padding: '16px 8px 4px'}}>Saved</div>
-                {inactiveConnections.map(conn => (
-                  <div 
-                    key={conn.id}
-                    className="connection-item"
-                    onClick={() => handleConnect(conn)}
-                  >
-                    <div className="connection-status disconnected"></div>
-                    <div className="connection-info">
-                      <div className="connection-name">{conn.name}</div>
-                      <div className="connection-host">{conn.host}</div>
-                    </div>
-                    <button 
-                      className="icon-btn connection-menu-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditConnection(conn);
-                      }}
-                      title="Edit"
+                {inactiveConnections.map(conn => {
+                  const isSelected = selectedConnections.includes(conn.id);
+                  const health = connectionHealth[conn.id];
+                  const isOffline = health && health.status === 'offline';
+
+                  return (
+                    <div 
+                      key={conn.id}
+                      className={`connection-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => batchMode ? toggleConnectionSelection(conn.id) : handleConnect(conn)}
                     >
-                      ⋮
-                    </button>
-                  </div>
-                ))}
+                      {batchMode ? (
+                        <div className={`connection-checkbox ${isSelected ? 'checked' : ''}`}>
+                          {isSelected ? '✓' : ''}
+                        </div>
+                      ) : (
+                        <div className={`connection-status ${isOffline ? 'offline' : 'disconnected'}`}></div>
+                      )}
+                      <div className="connection-info">
+                        <div className="connection-name">{conn.name}</div>
+                        <div className="connection-host">{conn.host}</div>
+                      </div>
+                      <button 
+                        className="icon-btn connection-menu-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditConnection(conn);
+                        }}
+                        title="Edit"
+                      >
+                        ⋮
+                      </button>
+                    </div>
+                  );
+                })}
               </>
             )}
 
@@ -387,12 +514,20 @@ function Dashboard() {
             {commands.map(cmd => (
               <div 
                 key={cmd.id}
-                className="command-item"
-                onClick={() => handleRunCommand(cmd)}
+                className={`command-item ${batchMode && pendingCommand?.id === cmd.id ? 'batch-active' : ''}`}
                 title={cmd.description || cmd.command}
               >
-                <div className="command-icon">$</div>
-                <div className="command-info">
+                <div 
+                  className="command-icon batch-toggle"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleBatchMode(cmd);
+                  }}
+                  title={batchMode && pendingCommand?.id === cmd.id ? 'Cancel batch mode' : 'Select for batch execution'}
+                >
+                  {batchMode && pendingCommand?.id === cmd.id ? '⚡' : '$'}
+                </div>
+                <div className="command-info" onClick={() => handleRunCommand(cmd)}>
                   <div className="command-name">{cmd.name}</div>
                   {cmd.description && (
                     <div className="command-description">{cmd.description}</div>
@@ -418,6 +553,31 @@ function Dashboard() {
               </div>
             )}
           </div>
+          
+          {batchMode && pendingCommand && (
+            <div className="batch-execute-bar">
+              <span className="batch-status">
+                {selectedConnections.length} connection{selectedConnections.length !== 1 ? 's' : ''} selected
+              </span>
+              <button 
+                className="btn btn-primary batch-send-btn"
+                onClick={executeBatch}
+                disabled={selectedConnections.length === 0}
+              >
+                Execute "{pendingCommand.name}"
+              </button>
+              <button 
+                className="btn btn-secondary batch-cancel-btn"
+                onClick={() => {
+                  setBatchMode(false);
+                  setSelectedConnections([]);
+                  setPendingCommand(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </aside>
       </main>
 
