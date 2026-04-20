@@ -1,6 +1,6 @@
 # SSH AGRE
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue)](https://github.com/yourusername/SSH-AGRE/releases)
+[![Version](https://img.shields.io/badge/version-0.2.1-blue)](https://github.com/yourusername/SSH-AGRE/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-green)](docker-compose.yml)
 
@@ -245,6 +245,10 @@ docker-compose up -d --build
 ```
 
 ## Changelog
+
+### v0.2.1 (2026-04-20)
+- Fixed SSH connection hanging issue where host key verification would not complete properly, leaving terminal in "blinking cursor" state indefinitely
+- Added fallback handling in host key verification to ensure proper error states
 
 ### v0.2.0 (2026-04-18)
 - Introduced Task Scheduling (cron jobs, history logs, and status tracking)
