@@ -333,7 +333,7 @@ class SSHSession {
         console.error(`[SSH] HOST KEY MISMATCH for ${this.connectionInfo.host}!`);
         console.error(`[SSH] Expected: ${result.known.keyType} ${result.known.hostKey}`);
         console.error(`[SSH] Received: sha256 ${keyHash}`);
-        
+
         // Notify client about mismatch - potential MITM attack
         this.sendToClient({
           type: 'hostkey',
@@ -344,6 +344,9 @@ class SSHSession {
         });
         return false;
       }
+      // Fallback: deny access if status is unknown
+      console.error(`[SSH] Unknown host key verification status: ${result.status}`);
+      return false;
     } catch (err) {
       console.error('[SSH] Host key verification error:', err);
       return false;
