@@ -244,6 +244,9 @@ rm -rf ./data
 docker-compose up -d --build
 ```
 
+### Connecting to the host machine from SSH-AGRE
+If you're running SSH-AGRE in Docker and want to SSH into the same machine, use `host.docker.internal` as the hostname instead of the machine's IP address. This resolves Docker's network namespace isolation.
+
 ## Changelog
 
 ### v0.2.1 (2026-04-20)

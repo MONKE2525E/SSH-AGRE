@@ -9,6 +9,8 @@ services:
       - "31457:31457"
     volumes:
       - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=production
       - PORT=31457
