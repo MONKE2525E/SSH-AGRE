@@ -6,6 +6,15 @@ const { logCommand } = require('../db/audit');
 const { SSHSession } = require('../ssh/sshManager');
 
 const MAX_COMMAND_LENGTH = 1000;
+const ALLOWED_BATCH_COMMANDS = new Set([
+  'uptime',
+  'whoami',
+  'hostname',
+  'date',
+  'df -h',
+  'free -m',
+  'uname -a'
+]);
 
 function isSafeBatchCommand(command) {
   if (typeof command !== 'string') return false;
@@ -19,15 +28,22 @@ function isSafeBatchCommand(command) {
   return !forbiddenPattern.test(trimmed);
 }
 
+function getAllowedBatchCommand(command) {
+  if (typeof command !== 'string') return null;
+  const normalized = command.trim().replace(/\s+/g, ' ');
+  return ALLOWED_BATCH_COMMANDS.has(normalized) ? normalized : null;
+}
+
 // Batch execute command on multiple connections
 router.post('/execute', authenticateToken, async (req, res) => {
   const { command, connectionIds } = req.body;
   const userId = req.user.userId;
+  const allowedCommand = getAllowedBatchCommand(command);
 
   console.log('[BATCH] Execute request:', { command, connectionIds, userId });
 
-  if (!isSafeBatchCommand(command) || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
-    return res.status(400).json({ error: 'A safe command and at least one connection ID are required' });
+  if (!isSafeBatchCommand(command) || !allowedCommand || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
+    return res.status(400).json({ error: 'An allowed safe command and at least one connection ID are required' });
   }
 
   const results = [];
@@ -64,9 +80,8 @@ router.post('/execute', authenticateToken, async (req, res) => {
       await new Promise((resolve, reject) => {
         session.client.on('ready', () => {
           console.log('[BATCH] SSH ready, executing command');
-          // codeql[js/uncontrolled-command-line]
-          // lgtm[js/uncontrolled-command-line]
-          session.client.exec(command, (err, stream) => {
+          // Execute only validated allowlisted command.
+          session.client.exec(allowedCommand, (err, stream) => {
             if (err) {
               reject(err);
               return;
@@ -101,7 +116,7 @@ router.post('/execute', authenticateToken, async (req, res) => {
       });
 
       // Log the command
-      await logCommand(userId, connectionId, `batch-${Date.now()}`, command, 'batch');
+      await logCommand(userId, connectionId, `batch-${Date.now()}`, allowedCommand, 'batch');
       
       results.push({ connectionId, status: 'success', connectionName: connection.name });
     } catch (error) {
