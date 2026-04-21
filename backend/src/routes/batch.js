@@ -42,7 +42,7 @@ router.post('/execute', authenticateToken, async (req, res) => {
 
   console.log('[BATCH] Execute request:', { command, connectionIds, userId });
 
-  if (!isSafeBatchCommand(command) || !allowedCommand || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
+  if (!allowedCommand || !connectionIds || !Array.isArray(connectionIds) || connectionIds.length === 0) {
     return res.status(400).json({ error: 'An allowed safe command and at least one connection ID are required' });
   }
 
