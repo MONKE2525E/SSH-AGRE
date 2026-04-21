@@ -1,12 +1,12 @@
 # SSH AGRE
 
-[![Version](https://img.shields.io/badge/version-0.2.1-blue)](https://github.com/yourusername/SSH-AGRE/releases)
+[![Version](https://img.shields.io/badge/version-0.2.2-blue)](https://github.com/yourusername/SSH-AGRE/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-green)](docker-compose.yml)
 
 A professional SSH aggregation and management platform with a dark industrial design. Manage multiple SSH connections simultaneously through a web-based interface with persistent sessions, command automation, and role-based user management.
 
-For technical details, system structure, and project history, see our [Engineering Logs](engineering_logs.md).
+For technical details, system structure, and development guidelines, see our [Overview](OVERVIEW.md).
 
 ## Screenshots
 
@@ -248,6 +248,10 @@ docker-compose up -d --build
 If you're running SSH-AGRE in Docker and want to SSH into the same machine, use `host.docker.internal` as the hostname instead of the machine's IP address. This resolves Docker's network namespace isolation.
 
 ## Changelog
+
+### v0.2.2 (2026-04-20)
+- Added Docker `extra_hosts` configuration for Linux to support connecting to the host machine via `host.docker.internal`
+- Improved Docker Compose setup documentation for multi-platform support
 
 ### v0.2.1 (2026-04-20)
 - Fixed SSH connection hanging issue where host key verification would not complete properly, leaving terminal in "blinking cursor" state indefinitely

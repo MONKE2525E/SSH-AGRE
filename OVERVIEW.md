@@ -140,7 +140,7 @@ SSH-AGRE/
 ├── docker-compose.yml                # Multi-container orchestration
 ├── .gitignore
 ├── README.md                         # User-facing docs
-├── DEVELOPMENT.md                    # This file
+├── OVERVIEW.md                       # This file
 ├── LICENSE
 └── .env                              # (not committed)
 
@@ -367,4 +367,4 @@ docker-compose exec sshagre-frontend-1 sh
 **For user-facing documentation and quick start**, see [README.md](./README.md).
 
 **Last updated**: 2026-04-20  
-**Current version**: 0.2.1
+**Current version**: 0.2.2
