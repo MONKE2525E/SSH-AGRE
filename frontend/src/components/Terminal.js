@@ -86,7 +86,14 @@ function Terminal({ id, sessionId, connectionId, isActive, onStatusChange, onDis
 
     // Connect to WebSocket
     const token = localStorage.getItem('token');
-    const ws = new WebSocket(`${WS_URL}/ws/terminal?token=${token}`);
+    
+    // Validate token to prevent parameter manipulation
+    if (token && !/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/.test(token)) {
+      console.error('Invalid token format');
+      return;
+    }
+    
+    const ws = new WebSocket(`${WS_URL}/ws/terminal?token=${encodeURIComponent(token)}`);
     wsRef.current = ws;
 
     ws.onopen = () => {

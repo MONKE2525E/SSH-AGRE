@@ -50,7 +50,6 @@ function ProfileModal({ onClose }) {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('[Profile] Fetched profile:', data);
         setProfile(data);
       } else {
         console.error('[Profile] Failed to fetch profile:', response.status);

@@ -180,7 +180,7 @@ const auditLogger = (req, res, next) => {
   const isSensitive = sensitivePaths.some(p => req.path.includes(p));
   
   if (isSensitive || req.method !== 'GET') {
-    console.log(`[AUDIT] ${req.method} ${req.path} | User: ${req.user?.username || 'anonymous'} | IP: ${req.ip}`);
+    console.log(`[AUDIT] Request logged`);
   }
   next();
 };

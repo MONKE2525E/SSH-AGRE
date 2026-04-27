@@ -34,7 +34,8 @@ export function getExistingGroups(items) {
   const groups = new Map();
   items.forEach(item => {
     if (item.group_name) {
-      groups.set(item.group_name, item.group_color || null);
+      const existingColor = groups.get(item.group_name);
+      groups.set(item.group_name, existingColor || item.group_color || null);
     }
   });
   return Array.from(groups.entries()).map(([name, color]) => ({ name, color }));

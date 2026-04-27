@@ -60,14 +60,14 @@ class Scheduler {
       // Start or update tasks
       for (const schedule of schedules) {
         if (!cron.validate(schedule.cron_expression)) {
-          console.error(`[SCHEDULER] Invalid cron expression for schedule ${schedule.id}: ${schedule.cron_expression}`);
+          console.error(`[SCHEDULER] Invalid cron expression for schedule ${schedule.id}`);
           continue;
         }
 
         if (!this.activeTasks.has(schedule.id)) {
           console.log(`[SCHEDULER] Scheduling task ${schedule.id} with cron: ${schedule.cron_expression}`);
           const task = cron.schedule(schedule.cron_expression, () => {
-            console.log(`[SCHEDULER] CRON TRIGGERED - Executing schedule ${schedule.id}: ${schedule.name}`);
+            console.log(`[SCHEDULER] CRON TRIGGERED - Executing schedule ${schedule.id}`);
             this.executeSchedule(schedule).catch(err => {
               console.error(`[SCHEDULER] Error during execution of schedule ${schedule.id}:`, err);
             });
@@ -103,7 +103,7 @@ class Scheduler {
 
     for (let i = 0; i < commands.length && !shouldStop; i++) {
       const cmd = commands[i];
-      console.log(`[SCHEDULER] Executing command ${i + 1}/${commands.length}: ${cmd.command.substring(0, 50)}...`);
+      console.log(`[SCHEDULER] Executing command ${i + 1}/${commands.length}`);
 
       try {
         let result = await this.executeSSHCommand(connection, cmd.command, schedule.timeout_seconds);
@@ -221,7 +221,7 @@ class Scheduler {
       last_run: new Date().toISOString()
     });
 
-    console.log(`[SCHEDULER] Schedule ${schedule.id} execution complete:`, results);
+    console.log(`[SCHEDULER] Schedule ${schedule.id} execution complete`);
   }
 
   executeSSHCommand(connection, command, timeoutSeconds = 3600) {

@@ -1,5 +1,4 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const { authenticateToken } = require('../middleware/auth');
 const { validators, handleValidationErrors } = require('../middleware/security');
 const { getUserById, updateUserProfile, getAllUsers, getPendingUsers, approveUser, deleteUser, toggleUserAdmin } = require('../db/users');

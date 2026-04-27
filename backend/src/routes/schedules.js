@@ -33,24 +33,19 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { name, commands, schedule_config, connection_ids, is_enabled, failure_strategy, retry_count, timeout_seconds } = req.body;
-    
-    console.log('[SCHEDULES] CREATE - Received payload:', JSON.stringify(req.body, null, 2));
-    
+
     // Validation
     if (!name || !commands || commands.length === 0 || !connection_ids || connection_ids.length === 0) {
-      console.log('[SCHEDULES] CREATE - Validation failed:', { name, commands, connection_ids });
-      return res.status(400).json({ 
-        error: 'Missing required fields: name, commands, connection_ids' 
+      return res.status(400).json({
+        error: 'Missing required fields: name, commands, connection_ids'
       });
     }
 
     // Build cron from visual config
     let cron_expression;
     if (schedule_config) {
-      console.log('[SCHEDULES] CREATE - Building cron from config:', schedule_config);
       cron_expression = Schedules.buildCronExpression(schedule_config);
     } else {
-      console.log('[SCHEDULES] CREATE - Missing schedule_config');
       return res.status(400).json({ error: 'Missing schedule_config' });
     }
 
@@ -66,13 +61,12 @@ router.post('/', authenticateToken, async (req, res) => {
       timeout_seconds: timeout_seconds || 3600,
       schedule_config
     };
-    console.log('[SCHEDULES] CREATE - Calling Schedules.create with:', JSON.stringify(createData, null, 2));
-    
+
     const result = await Schedules.create(createData);
 
     // Tell scheduler to reload immediately
     try {
-      Scheduler.reloadSchedule(result.id);
+      await Scheduler.reloadSchedule(result.id);
     } catch (schedErr) {
       console.error('[SCHEDULES] Error reloading scheduler after create:', schedErr);
     }
@@ -81,9 +75,9 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(schedule);
   } catch (error) {
     console.error('[SCHEDULES] Error creating schedule:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to create schedule',
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -117,7 +111,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     // Tell scheduler to reload immediately
     try {
-      Scheduler.reloadSchedule(req.params.id);
+      await Scheduler.reloadSchedule(req.params.id);
     } catch (schedErr) {
       console.error('[SCHEDULES] Error reloading scheduler after update:', schedErr);
     }
@@ -134,14 +128,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const result = await Schedules.delete(req.params.id, req.user.userId || req.user.id);
-    
+
     if (result.deleted === 0) {
       return res.status(404).json({ error: 'Schedule not found' });
     }
 
     // Tell scheduler to clear the task
     try {
-      Scheduler.reloadSchedule(req.params.id);
+      await Scheduler.reloadSchedule(req.params.id);
     } catch (schedErr) {
       console.error('[SCHEDULES] Error reloading scheduler after delete:', schedErr);
     }
@@ -162,7 +156,7 @@ router.get('/:id/history', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Schedule not found' });
     }
 
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = Number.parseInt(req.query.limit) || 50;
     const history = await Schedules.getHistory(req.params.id, limit);
     res.json(history);
   } catch (error) {
@@ -196,18 +190,14 @@ router.post('/preview', authenticateToken, async (req, res) => {
 
 // Manually trigger a schedule
 router.post('/:id/run', authenticateToken, async (req, res) => {
-  console.log(`[SCHEDULES] Manual run requested for schedule ${req.params.id}`);
   try {
     const userId = req.user.userId || req.user.id;
     const schedule = await Schedules.getById(req.params.id, userId);
-    
+
     if (!schedule) {
-      console.log(`[SCHEDULES] Manual run failed: Schedule ${req.params.id} not found for user ${userId}`);
       return res.status(404).json({ error: 'Schedule not found' });
     }
 
-    console.log(`[SCHEDULES] Manually executing schedule ${schedule.id}: ${schedule.name}`);
-    
     // Run the schedule asynchronously so it doesn't block the request
     Scheduler.executeSchedule(schedule).catch(err => {
       console.error('[SCHEDULES] Error in manual schedule run execution:', err);
