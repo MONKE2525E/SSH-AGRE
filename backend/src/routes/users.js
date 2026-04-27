@@ -159,4 +159,33 @@ router.post('/:id/toggle-admin', authenticateToken, async (req, res) => {
   }
 });
 
+// Reset user password (admin only)
+router.post('/:id/reset-password', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (userId === req.user.userId) {
+      return res.status(400).json({ error: 'Use the Account tab to change your own password' });
+    }
+
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 8 || newPassword.length > 128) {
+      return res.status(400).json({ error: 'Password must be 8-128 characters' });
+    }
+
+    await updateUserProfile(userId, { password: newPassword });
+    res.json({ success: true, message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('[USERS] Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 module.exports = router;

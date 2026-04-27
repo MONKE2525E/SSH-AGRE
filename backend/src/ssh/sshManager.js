@@ -1,8 +1,11 @@
 const { Client } = require('ssh2');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
 const { getConnectionById } = require('../db/connections');
 const { verifyHostKey, addKnownHost } = require('../db/knownHosts');
 const { logCommand } = require('../db/audit');
+
+const IS_DOCKER = fs.existsSync('/.dockerenv');
 
 // Active SSH sessions storage
 const activeSessions = new Map();
@@ -45,8 +48,15 @@ class SSHSession {
         throw new Error('Connection not found');
       }
 
+      let targetHost = this.connectionInfo.host;
+      // Handle Docker host networking if trying to connect to the host machine
+      if ((targetHost === 'localhost' || targetHost === '127.0.0.1') && IS_DOCKER) {
+        console.log(`[SSH] Remapping ${targetHost} to host.docker.internal for containerized environment`);
+        targetHost = 'host.docker.internal';
+      }
+
       const connectConfig = {
-        host: this.connectionInfo.host,
+        host: targetHost,
         port: this.connectionInfo.port || 22,
         username: this.connectionInfo.username,
         keepaliveInterval: KEEP_ALIVE_INTERVAL,
@@ -55,7 +65,12 @@ class SSHSession {
         // SECURITY: Host key verification
         hostHash: 'sha256',
         hostVerifier: async (keyHash) => {
-          return await this.verifyHostKey(keyHash);
+          try {
+            return await this.verifyHostKey(keyHash);
+          } catch (err) {
+            console.error('[SSH] Host verification failed:', err);
+            return false;
+          }
         }
       };
 

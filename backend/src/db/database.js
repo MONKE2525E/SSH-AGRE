@@ -91,11 +91,19 @@ function initDatabase() {
           password TEXT,
           private_key TEXT,
           use_key_auth BOOLEAN DEFAULT 0,
+          group_name TEXT,
+          group_color TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
+      database.run(`ALTER TABLE connections ADD COLUMN group_name TEXT`, (e) => {
+        if (e && !e.message.includes('duplicate column')) console.error('[DB] Migration error (group_name):', e.message);
+      });
+      database.run(`ALTER TABLE connections ADD COLUMN group_color TEXT`, (e) => {
+        if (e && !e.message.includes('duplicate column')) console.error('[DB] Migration error (group_color):', e.message);
+      });
 
       // Command macros table
       database.run(`
@@ -105,10 +113,18 @@ function initDatabase() {
           name TEXT NOT NULL,
           command TEXT NOT NULL,
           description TEXT,
+          group_name TEXT,
+          group_color TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `);
+      database.run(`ALTER TABLE command_macros ADD COLUMN group_name TEXT`, (e) => {
+        if (e && !e.message.includes('duplicate column')) console.error('[DB] Migration error (macro group_name):', e.message);
+      });
+      database.run(`ALTER TABLE command_macros ADD COLUMN group_color TEXT`, (e) => {
+        if (e && !e.message.includes('duplicate column')) console.error('[DB] Migration error (macro group_color):', e.message);
+      });
 
       // Scheduled commands table with structured scheduling
       database.run(`

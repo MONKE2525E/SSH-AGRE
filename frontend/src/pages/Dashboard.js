@@ -6,6 +6,7 @@ import ConnectionModal from '../components/ConnectionModal';
 import CommandModal from '../components/CommandModal';
 import ProfileModal from '../components/ProfileModal';
 import '../styles/dashboard.css';
+import { GROUP_COLORS as GROUP_COLOR_MAP, getExistingGroups, groupItems } from '../utils/groups';
 
 function Dashboard() {
   const { user } = useAuth();
@@ -114,6 +115,7 @@ function Dashboard() {
   }, []);
 
   const handleDisconnect = useCallback((sessionId) => {
+    if (!window.confirm('Are you sure you want to disconnect this session? This cannot be undone.')) return;
     setActiveSessions(prev => {
       const filtered = prev.filter(s => s.id !== sessionId);
       if (currentSessionId === sessionId) {
@@ -278,7 +280,7 @@ function Dashboard() {
   }, []);
 
   const handleDeleteConnection = useCallback(async (connectionId) => {
-    if (!window.confirm('Delete this connection?')) return;
+    if (!window.confirm('Are you sure you want to delete this connection? This cannot be undone.')) return;
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/connections/${connectionId}`, {
@@ -321,6 +323,14 @@ function Dashboard() {
   const inactiveConnections = useMemo(() => connections.filter(c => 
     !activeSessions.some(s => s.connectionId === c.id)
   ), [connections, activeSessions]);
+
+  const existingGroups = useMemo(() => getExistingGroups(connections), [connections]);
+
+  const groupedInactiveConnections = useMemo(() => groupItems(inactiveConnections), [inactiveConnections]);
+
+  const existingCommandGroups = useMemo(() => getExistingGroups(commands), [commands]);
+
+  const groupedCommands = useMemo(() => groupItems(commands), [commands]);
 
   return (
     <div className="dashboard">
@@ -418,39 +428,51 @@ function Dashboard() {
             
             {inactiveConnections.length > 0 && (
               <>
-                <div className="sidebar-title" style={{padding: '16px 8px 4px'}}>Saved</div>
-                {inactiveConnections.map(conn => {
-                  const isSelected = selectedConnections.includes(conn.id);
-                  const health = connectionHealth[conn.id];
-                  const isOffline = health && health.status === 'offline';
-
+                {Object.entries(groupedInactiveConnections).sort(([a], [b]) => a === 'Ungrouped' ? 1 : b === 'Ungrouped' ? -1 : a.localeCompare(b)).map(([groupName, groupConns]) => {
+                  if (groupConns.length === 0) return null;
+                  const groupColorName = groupName !== 'Ungrouped' && existingGroups.find(g => g.name === groupName)?.color;
+                  const groupColorHex = groupColorName ? GROUP_COLOR_MAP[groupColorName] : null;
                   return (
-                    <div 
-                      key={conn.id}
-                      className={`connection-item ${isSelected ? 'selected' : ''}`}
-                      onClick={() => batchMode ? toggleConnectionSelection(conn.id) : handleConnect(conn)}
-                    >
-                      {batchMode ? (
-                        <div className={`connection-checkbox ${isSelected ? 'checked' : ''}`}>
-                          {isSelected ? '✓' : ''}
-                        </div>
-                      ) : (
-                        <div className={`connection-status ${isOffline ? 'offline' : 'disconnected'}`}></div>
-                      )}
-                      <div className="connection-info">
-                        <div className="connection-name">{conn.name}</div>
-                        <div className="connection-host">{conn.host}</div>
+                    <div key={groupName} style={{ marginBottom: '8px' }}>
+                      <div className="sidebar-title" style={{padding: '16px 8px 4px', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        {groupColorHex && <div style={{width: '8px', height: '8px', borderRadius: '50%', backgroundColor: groupColorHex}}></div>}
+                        {groupName === 'Ungrouped' ? 'Saved' : groupName}
                       </div>
-                      <button 
-                        className="icon-btn connection-menu-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditConnection(conn);
-                        }}
-                        title="Edit"
-                      >
-                        ⋮
-                      </button>
+                      {groupConns.map(conn => {
+                        const isSelected = selectedConnections.includes(conn.id);
+                        const health = connectionHealth[conn.id];
+                        const isOffline = health && health.status === 'offline';
+
+                        return (
+                          <div 
+                            key={conn.id}
+                            className={`connection-item ${isSelected ? 'selected' : ''}`}
+                            onClick={() => batchMode ? toggleConnectionSelection(conn.id) : handleConnect(conn)}
+                          >
+                            {batchMode ? (
+                              <div className={`connection-checkbox ${isSelected ? 'checked' : ''}`}>
+                                {isSelected ? '✓' : ''}
+                              </div>
+                            ) : (
+                              <div className={`connection-status ${isOffline ? 'offline' : 'disconnected'}`}></div>
+                            )}
+                            <div className="connection-info">
+                              <div className="connection-name">{conn.name}</div>
+                              <div className="connection-host">{conn.host}</div>
+                            </div>
+                            <button 
+                              className="icon-btn connection-menu-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditConnection(conn);
+                              }}
+                              title="Edit"
+                            >
+                              ⋮
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
@@ -511,40 +533,55 @@ function Dashboard() {
             </div>
           </div>
           <div className="sidebar-content">
-            {commands.map(cmd => (
-              <div 
-                key={cmd.id}
-                className={`command-item ${batchMode && pendingCommand?.id === cmd.id ? 'batch-active' : ''}`}
-                title={cmd.description || cmd.command}
-              >
-                <div 
-                  className="command-icon batch-toggle"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleBatchMode(cmd);
-                  }}
-                  title={batchMode && pendingCommand?.id === cmd.id ? 'Cancel batch mode' : 'Select for batch execution'}
-                >
-                  {batchMode && pendingCommand?.id === cmd.id ? '⚡' : '$'}
-                </div>
-                <div className="command-info" onClick={() => handleRunCommand(cmd)}>
-                  <div className="command-name">{cmd.name}</div>
-                  {cmd.description && (
-                    <div className="command-description">{cmd.description}</div>
+            {Object.entries(groupedCommands).sort(([a], [b]) => a === 'Ungrouped' ? 1 : b === 'Ungrouped' ? -1 : a.localeCompare(b)).map(([groupName, groupCmds]) => {
+              if (groupCmds.length === 0) return null;
+              const groupColorName = groupName !== 'Ungrouped' && existingCommandGroups.find(g => g.name === groupName)?.color;
+              const groupColorHex = groupColorName ? GROUP_COLOR_MAP[groupColorName] : null;
+              return (
+                <div key={groupName} style={{ marginBottom: '8px' }}>
+                  {groupName !== 'Ungrouped' && (
+                    <div className="sidebar-title" style={{padding: '16px 8px 4px', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                      {groupColorHex && <div style={{width: '8px', height: '8px', borderRadius: '50%', backgroundColor: groupColorHex}}></div>}
+                      {groupName}
+                    </div>
                   )}
+                  {groupCmds.map(cmd => (
+                    <div
+                      key={cmd.id}
+                      className={`command-item ${batchMode && pendingCommand?.id === cmd.id ? 'batch-active' : ''}`}
+                      title={cmd.description || cmd.command}
+                    >
+                      <div
+                        className="command-icon batch-toggle"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleBatchMode(cmd);
+                        }}
+                        title={batchMode && pendingCommand?.id === cmd.id ? 'Cancel batch mode' : 'Select for batch execution'}
+                      >
+                        {batchMode && pendingCommand?.id === cmd.id ? '⚡' : '$'}
+                      </div>
+                      <div className="command-info" onClick={() => handleRunCommand(cmd)}>
+                        <div className="command-name">{cmd.name}</div>
+                        {cmd.description && (
+                          <div className="command-description">{cmd.description}</div>
+                        )}
+                      </div>
+                      <button
+                        className="icon-btn connection-menu-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditCommand(cmd);
+                        }}
+                        title="Edit"
+                      >
+                        ⋮
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <button 
-                  className="icon-btn connection-menu-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditCommand(cmd);
-                  }}
-                  title="Edit"
-                >
-                  ⋮
-                </button>
-              </div>
-            ))}
+              );
+            })}
 
             {commands.length === 0 && (
               <div className="sidebar-empty">
@@ -585,6 +622,7 @@ function Dashboard() {
       {showConnectionModal && (
         <ConnectionModal
           connection={editingConnection}
+          existingGroups={existingGroups}
           onClose={() => {
             setShowConnectionModal(false);
             setEditingConnection(null);
@@ -601,6 +639,7 @@ function Dashboard() {
       {showCommandModal && (
         <CommandModal
           command={editingCommand}
+          existingGroups={existingCommandGroups}
           onClose={() => {
             setShowCommandModal(false);
             setEditingCommand(null);

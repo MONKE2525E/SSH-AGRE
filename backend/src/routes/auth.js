@@ -69,7 +69,7 @@ router.post('/setup', validators.register, handleValidationErrors, async (req, r
       );
     });
 
-    console.log('[AUTH] First admin created during setup:', username);
+    console.log('[AUTH] First admin created during setup');
     
     // Generate token and return
     const token = jwt.sign(
@@ -96,17 +96,15 @@ router.post('/setup', validators.register, handleValidationErrors, async (req, r
 
 // Login with input validation
 router.post('/login', validators.login, handleValidationErrors, async (req, res) => {
-  console.log('[AUTH] Login attempt:', req.body.username);
+  console.log('[AUTH] Login attempt');
   try {
     const { username, password } = req.body;
     
     if (!username || !password) {
-      console.log('[AUTH] Missing credentials');
       return res.status(400).json({ error: 'Username and password are required' });
     }
     
     const user = await getUserByUsername(username);
-    console.log('[AUTH] User lookup result:', user ? 'found' : 'not found');
     
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -114,12 +112,11 @@ router.post('/login', validators.login, handleValidationErrors, async (req, res)
     
     // Check if user is approved
     if (!user.is_approved && !user.is_admin) {
-      console.log('[AUTH] User not approved:', username);
+      console.log('[AUTH] User not approved');
       return res.status(403).json({ error: 'Your account is pending admin approval' });
     }
     
     const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('[AUTH] Password validation:', isValidPassword ? 'valid' : 'invalid');
     
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -131,7 +128,7 @@ router.post('/login', validators.login, handleValidationErrors, async (req, res)
       { expiresIn: '24h' }
     );
     
-    console.log('[AUTH] Login successful for:', username);
+    console.log('[AUTH] Login successful');
     res.json({
       token,
       user: {
@@ -149,12 +146,11 @@ router.post('/login', validators.login, handleValidationErrors, async (req, res)
 
 // Register with input validation and strong password requirements
 router.post('/register', validators.register, handleValidationErrors, async (req, res) => {
-  console.log('[AUTH] Register attempt:', req.body.username);
+  console.log('[AUTH] Register attempt');
   try {
     const { username, password, name } = req.body;
     
     if (!username || !password) {
-      console.log('[AUTH] Missing credentials');
       return res.status(400).json({ error: 'Username and password are required' });
     }
     
@@ -174,17 +170,15 @@ router.post('/register', validators.register, handleValidationErrors, async (req
     }
     
     const existingUser = await getUserByUsername(username);
-    console.log('[AUTH] Existing user check:', existingUser ? 'exists' : 'new user');
     
     if (existingUser) {
       return res.status(409).json({ error: 'Username already exists' });
     }
     
     const user = await createUser(username, password, name || username);
-    console.log('[AUTH] User created (pending approval):', user.id);
     
     // Don't create default macros or token - user needs approval first
-    console.log('[AUTH] Registration pending approval for:', username);
+    console.log('[AUTH] Registration pending approval');
     res.status(201).json({
       message: 'Registration successful. Your account is pending admin approval.',
       pending: true

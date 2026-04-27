@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const Schedules = require('../db/schedules');
 const Connections = require('../db/connections');
+const { verifyHostKey, addKnownHost } = require('../db/knownHosts');
 const { Client } = require('ssh2');
 
 class Scheduler {
@@ -59,14 +60,14 @@ class Scheduler {
       // Start or update tasks
       for (const schedule of schedules) {
         if (!cron.validate(schedule.cron_expression)) {
-          console.error(`[SCHEDULER] Invalid cron expression for schedule ${schedule.id}: ${schedule.cron_expression}`);
+          console.error(`[SCHEDULER] Invalid cron expression for schedule ${schedule.id}`);
           continue;
         }
 
         if (!this.activeTasks.has(schedule.id)) {
           console.log(`[SCHEDULER] Scheduling task ${schedule.id} with cron: ${schedule.cron_expression}`);
           const task = cron.schedule(schedule.cron_expression, () => {
-            console.log(`[SCHEDULER] CRON TRIGGERED - Executing schedule ${schedule.id}: ${schedule.name}`);
+            console.log(`[SCHEDULER] CRON TRIGGERED - Executing schedule ${schedule.id}`);
             this.executeSchedule(schedule).catch(err => {
               console.error(`[SCHEDULER] Error during execution of schedule ${schedule.id}:`, err);
             });
@@ -102,7 +103,7 @@ class Scheduler {
 
     for (let i = 0; i < commands.length && !shouldStop; i++) {
       const cmd = commands[i];
-      console.log(`[SCHEDULER] Executing command ${i + 1}/${commands.length}: ${cmd.command.substring(0, 50)}...`);
+      console.log(`[SCHEDULER] Executing command ${i + 1}/${commands.length}`);
 
       try {
         let result = await this.executeSSHCommand(connection, cmd.command, schedule.timeout_seconds);
@@ -220,7 +221,7 @@ class Scheduler {
       last_run: new Date().toISOString()
     });
 
-    console.log(`[SCHEDULER] Schedule ${schedule.id} execution complete:`, results);
+    console.log(`[SCHEDULER] Schedule ${schedule.id} execution complete`);
   }
 
   executeSSHCommand(connection, command, timeoutSeconds = 3600) {
@@ -274,7 +275,20 @@ class Scheduler {
         host: connection.host,
         port: connection.port || 22,
         username: connection.username,
-        readyTimeout: 30000
+        readyTimeout: 30000,
+        // SECURITY: Host key verification
+        hostHash: 'sha256',
+        hostVerifier: (keyHash) => {
+          return verifyHostKey(connection.user_id, connection.host, connection.port || 22, 'sha256', keyHash)
+            .then(result => {
+              if (result.status === 'match') return true;
+              if (result.status === 'new') {
+                return addKnownHost(connection.user_id, connection.host, connection.port || 22, 'sha256', keyHash)
+                  .then(() => true);
+              }
+              return false; // mismatch
+            });
+        }
       };
 
       if (connection.use_key_auth && connection.private_key) {

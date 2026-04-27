@@ -20,6 +20,8 @@ function ProfileModal({ onClose }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [expandedUserId, setExpandedUserId] = useState(null);
+  const [resetPasswordInputs, setResetPasswordInputs] = useState({});
   
   // Scheduling state
   const [schedules, setSchedules] = useState([]);
@@ -48,7 +50,6 @@ function ProfileModal({ onClose }) {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('[Profile] Fetched profile:', data);
         setProfile(data);
       } else {
         console.error('[Profile] Failed to fetch profile:', response.status);
@@ -265,6 +266,34 @@ function ProfileModal({ onClose }) {
 
       fetchUsers();
       setMessage(`User role updated to ${!currentStatus ? 'Administrator' : 'Basic User'}`);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleResetPassword = async (userId) => {
+    const newPassword = resetPasswordInputs[userId];
+    if (!newPassword || newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ newPassword })
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to reset password');
+      }
+      setMessage('Password reset successfully');
+      setResetPasswordInputs({ ...resetPasswordInputs, [userId]: '' });
     } catch (err) {
       setError(err.message);
     }
@@ -686,7 +715,7 @@ function ProfileModal({ onClose }) {
                 users.map(u => (
                   <div key={u.id} className="user-item" style={{
                     display: 'flex', 
-                    alignItems: 'center', 
+                    flexDirection: 'column',
                     padding: '16px', 
                     backgroundColor: 'var(--bg-panel)',
                     border: '1px solid var(--border-primary)',
@@ -694,34 +723,70 @@ function ProfileModal({ onClose }) {
                     marginBottom: '12px',
                     gap: '12px'
                   }}>
-                    <div style={{flex: 1}}>
-                      <div style={{fontWeight: 500}}>{u.name || u.username}</div>
-                      <div style={{fontSize: '12px', color: 'var(--text-secondary)'}}>
-                        {u.username} {u.is_admin && <span style={{color: 'var(--accent-primary)'}}>• Admin</span>}
+                    <div 
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+                      onClick={() => setExpandedUserId(expandedUserId === u.id ? null : u.id)}
+                    >
+                      <div style={{flex: 1}}>
+                        <div style={{fontWeight: 500}}>{u.name || u.username}</div>
+                        <div style={{fontSize: '12px', color: 'var(--text-secondary)'}}>
+                          {u.username} {u.is_admin && <span style={{color: 'var(--accent-primary)'}}>• Admin</span>}
+                        </div>
+                      </div>
+                      <div style={{fontSize: '12px', color: 'var(--text-muted)'}}>
+                        {new Date(u.created_at).toLocaleDateString()}
+                      </div>
+                      <div style={{color: 'var(--text-muted)'}}>
+                        {expandedUserId === u.id ? '▼' : '▶'}
                       </div>
                     </div>
-                    <div style={{fontSize: '12px', color: 'var(--text-muted)'}}>
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </div>
-                    {u.id !== user.id && (
-                      <>
-                        <button 
-                          className="btn btn-secondary"
-                          onClick={() => handleToggleAdmin(u.id, u.is_admin)}
-                          style={{padding: '4px 12px', fontSize: '12px'}}
-                          title={u.is_admin ? 'Demote to Basic User' : 'Promote to Admin'}
-                        >
-                          {u.is_admin ? 'Demote' : 'Promote'}
-                        </button>
-                        <button 
-                          className="icon-btn" 
-                          onClick={() => handleDeleteUser(u.id)}
-                          title="Delete user"
-                          style={{color: 'var(--accent-danger)'}}
-                        >
-                          ×
-                        </button>
-                      </>
+                    {expandedUserId === u.id && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', paddingTop: '12px', borderTop: '1px solid var(--border-primary)' }}>
+                        {u.id === (user?.id || user?.userId) ? (
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            You cannot edit your own account from this panel. Use the Account tab.
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button 
+                                className="btn btn-secondary"
+                                onClick={(e) => { e.stopPropagation(); handleToggleAdmin(u.id, u.is_admin); }}
+                                style={{padding: '4px 12px', fontSize: '12px'}}
+                                title={u.is_admin ? 'Demote to Basic User' : 'Promote to Admin'}
+                              >
+                                {u.is_admin ? 'Demote to Basic User' : 'Promote to Admin'}
+                              </button>
+                              <button 
+                                className="btn btn-danger" 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.id); }}
+                                title="Delete user"
+                                style={{padding: '4px 12px', fontSize: '12px'}}
+                              >
+                                Delete User
+                              </button>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                              <input 
+                                type="password" 
+                                placeholder="New Password (min 8 chars)" 
+                                className="form-input"
+                                style={{ flex: 1, padding: '4px 8px', fontSize: '12px' }}
+                                value={resetPasswordInputs[u.id] || ''}
+                                onChange={(e) => setResetPasswordInputs({ ...resetPasswordInputs, [u.id]: e.target.value })}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <button 
+                                className="btn btn-primary"
+                                onClick={(e) => { e.stopPropagation(); handleResetPassword(u.id); }}
+                                style={{padding: '4px 12px', fontSize: '12px'}}
+                              >
+                                Reset Password
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))

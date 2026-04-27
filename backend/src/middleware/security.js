@@ -100,7 +100,16 @@ const validators = {
     body('privateKey')
       .optional()
       .isLength({ max: 10000 })
-      .withMessage('Private key too large')
+      .withMessage('Private key too large'),
+    body('group_name')
+      .optional({ nullable: true, checkFalsy: true })
+      .trim()
+      .isLength({ max: 64 })
+      .withMessage('Group name must be under 64 characters'),
+    body('group_color')
+      .optional({ nullable: true, checkFalsy: true })
+      .isIn(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink'])
+      .withMessage('Invalid group color')
   ],
   
   // Macro validators
@@ -118,7 +127,16 @@ const validators = {
       .optional()
       .trim()
       .isLength({ max: 500 })
-      .withMessage('Description must be under 500 characters')
+      .withMessage('Description must be under 500 characters'),
+    body('group_name')
+      .optional({ nullable: true, checkFalsy: true })
+      .trim()
+      .isLength({ max: 64 })
+      .withMessage('Group name must be under 64 characters'),
+    body('group_color')
+      .optional({ nullable: true, checkFalsy: true })
+      .isIn(['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink'])
+      .withMessage('Invalid group color')
   ],
   
   // Profile validators
@@ -162,7 +180,7 @@ const auditLogger = (req, res, next) => {
   const isSensitive = sensitivePaths.some(p => req.path.includes(p));
   
   if (isSensitive || req.method !== 'GET') {
-    console.log(`[AUDIT] ${req.method} ${req.path} | User: ${req.user?.username || 'anonymous'} | IP: ${req.ip}`);
+    console.log(`[AUDIT] Request logged`);
   }
   next();
 };

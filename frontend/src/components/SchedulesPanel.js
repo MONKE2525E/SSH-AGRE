@@ -173,7 +173,12 @@ const SchedulesPanel = React.memo(({
       </div>
 
       <div className="schedules-card-list">
-        {paginatedSchedules.map((schedule) => (
+        {filteredSchedules.length === 0 ? (
+          <div className="schedules-empty" style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            No schedules found. Click "+ New Schedule" to create one.
+          </div>
+        ) : (
+          paginatedSchedules.map((schedule) => (
           <div key={schedule.id} className="sched-card">
             <div className="sched-card-main">
               <div className="sched-card-left">
@@ -226,7 +231,7 @@ const SchedulesPanel = React.memo(({
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {totalPages > 1 && (

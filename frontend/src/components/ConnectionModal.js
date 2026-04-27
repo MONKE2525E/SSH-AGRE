@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
+import { parseGroupInput, buildGroupString } from '../utils/groups';
+import GroupInput from './GroupInput';
 
-function ConnectionModal({ connection, onClose, onSave, onDelete }) {
+function ConnectionModal({ connection, existingGroups, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
     name: '',
     host: '',
@@ -9,7 +11,8 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
     username: '',
     password: '',
     privateKey: '',
-    useKeyAuth: false
+    useKeyAuth: false,
+    group: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +27,8 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
         username: connection.username || '',
         password: '',
         privateKey: '',
-        useKeyAuth: connection.use_key_auth === 1
+        useKeyAuth: connection.use_key_auth === 1,
+        group: buildGroupString(connection.group_name, connection.group_color)
       });
     }
   }, [connection]);
@@ -41,12 +45,14 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
     setError('');
     setLoading(true);
 
+    const { group_name, group_color } = parseGroupInput(formData.group);
+
     try {
       const token = localStorage.getItem('token');
-      const url = isEditing 
+      const url = isEditing
         ? `${API_URL}/api/connections/${connection.id}`
         : `${API_URL}/api/connections`;
-      
+
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
@@ -60,7 +66,9 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
           username: formData.username,
           password: formData.password || undefined,
           privateKey: formData.privateKey || undefined,
-          useKeyAuth: formData.useKeyAuth
+          useKeyAuth: formData.useKeyAuth,
+          group_name,
+          group_color
         })
       });
 
@@ -138,6 +146,13 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
                 required
               />
             </div>
+
+            <GroupInput
+              value={formData.group}
+              onChange={(val) => setFormData({...formData, group: val})}
+              existingGroups={existingGroups}
+              datalistId="connection-group-suggestions"
+            />
 
             <div className="checkbox-group">
               <input

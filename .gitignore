@@ -57,7 +57,13 @@ tmp/
 *.tmp
 *.temp
 
-# Claude AI
+# AI
 .claude/
 *.claude
 .anthropic-token
+.gemini/
+*.gemini
+.codex/
+*.codex
+.openai/
+*.openai

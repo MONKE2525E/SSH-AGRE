@@ -1,6 +1,6 @@
 {
   "name": "SSH-AGRE-FRONTEND",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",

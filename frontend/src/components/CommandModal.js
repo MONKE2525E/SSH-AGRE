@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
+import { parseGroupInput, buildGroupString } from '../utils/groups';
+import GroupInput from './GroupInput';
 
-function CommandModal({ command, onClose, onSave, onDelete }) {
+function CommandModal({ command, existingGroups, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
     name: '',
     command: '',
-    description: ''
+    description: '',
+    group: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -16,7 +19,8 @@ function CommandModal({ command, onClose, onSave, onDelete }) {
       setFormData({
         name: command.name || '',
         command: command.command || '',
-        description: command.description || ''
+        description: command.description || '',
+        group: buildGroupString(command.group_name, command.group_color)
       });
     }
   }, [command]);
@@ -26,19 +30,27 @@ function CommandModal({ command, onClose, onSave, onDelete }) {
     setError('');
     setLoading(true);
 
+    const { group_name, group_color } = parseGroupInput(formData.group);
+
     try {
       const token = localStorage.getItem('token');
-      const url = isEditing 
+      const url = isEditing
         ? `${API_URL}/api/commands/${command.id}`
         : `${API_URL}/api/commands`;
-      
+
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          name: formData.name,
+          command: formData.command,
+          description: formData.description || undefined,
+          group_name,
+          group_color
+        })
       });
 
       const data = await response.json();
@@ -103,6 +115,13 @@ function CommandModal({ command, onClose, onSave, onDelete }) {
                 placeholder="Brief description (optional)"
               />
             </div>
+
+            <GroupInput
+              value={formData.group}
+              onChange={(val) => setFormData({...formData, group: val})}
+              existingGroups={existingGroups}
+              datalistId="command-group-suggestions"
+            />
           </div>
 
           <div className="modal-footer">

@@ -4,7 +4,7 @@ function getUserMacros(userId) {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
     db.all(
-      'SELECT id, name, command, description, created_at FROM command_macros WHERE user_id = ? ORDER BY created_at DESC',
+      'SELECT id, name, command, description, group_name, group_color, created_at FROM command_macros WHERE user_id = ? ORDER BY created_at DESC',
       [userId],
       (err, rows) => {
         if (err) {
@@ -20,11 +20,11 @@ function getUserMacros(userId) {
 function createMacro(userId, macroData) {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
-    const { name, command, description } = macroData;
-    
+    const { name, command, description, group_name, group_color } = macroData;
+
     db.run(
-      'INSERT INTO command_macros (user_id, name, command, description) VALUES (?, ?, ?, ?)',
-      [userId, name, command, description || null],
+      'INSERT INTO command_macros (user_id, name, command, description, group_name, group_color) VALUES (?, ?, ?, ?, ?, ?)',
+      [userId, name, command, description || null, group_name || null, group_color || null],
       function(err) {
         if (err) {
           reject(err);
@@ -39,11 +39,11 @@ function createMacro(userId, macroData) {
 function updateMacro(macroId, userId, macroData) {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
-    const { name, command, description } = macroData;
-    
+    const { name, command, description, group_name, group_color } = macroData;
+
     db.run(
-      'UPDATE command_macros SET name = ?, command = ?, description = ? WHERE id = ? AND user_id = ?',
-      [name, command, description || null, macroId, userId],
+      'UPDATE command_macros SET name = ?, command = ?, description = ?, group_name = ?, group_color = ? WHERE id = ? AND user_id = ?',
+      [name, command, description || null, group_name || null, group_color || null, macroId, userId],
       (err) => {
         if (err) {
           reject(err);
