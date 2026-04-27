@@ -64,13 +64,13 @@ class SSHSession {
         readyTimeout: 20000,
         // SECURITY: Host key verification
         hostHash: 'sha256',
-        hostVerifier: (keyHash, callback) => {
-          this.verifyHostKey(keyHash)
-            .then(result => callback(result))
-            .catch(err => {
-              console.error('[SSH] Host verification failed:', err);
-              callback(false);
-            });
+        hostVerifier: async (keyHash) => {
+          try {
+            return await this.verifyHostKey(keyHash);
+          } catch (err) {
+            console.error('[SSH] Host verification failed:', err);
+            return false;
+          }
         }
       };
 
