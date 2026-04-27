@@ -5,12 +5,12 @@ function getUserConnections(userId) {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
     db.all(
-      `SELECT id, name, host, port, username, use_key_auth, 
+      `SELECT id, name, host, port, username, use_key_auth, group_name, group_color,
               CASE WHEN password IS NOT NULL THEN 1 ELSE 0 END as has_password,
               CASE WHEN private_key IS NOT NULL THEN 1 ELSE 0 END as has_private_key,
-              created_at 
-       FROM connections 
-       WHERE user_id = ? 
+              created_at
+       FROM connections
+       WHERE user_id = ?
        ORDER BY created_at DESC`,
       [userId],
       (err, rows) => {
@@ -59,16 +59,16 @@ function getConnectionById(connectionId, userId) {
 function createConnection(userId, connectionData) {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
-    const { name, host, port, username, password, privateKey, useKeyAuth } = connectionData;
+    const { name, host, port, username, password, privateKey, useKeyAuth, group_name, group_color } = connectionData;
     
     // Encrypt sensitive fields
     const encryptedPassword = password ? encrypt(password) : null;
     const encryptedPrivateKey = privateKey ? encrypt(privateKey) : null;
     
     db.run(
-      `INSERT INTO connections (user_id, name, host, port, username, password, private_key, use_key_auth) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, name, host, port || 22, username, encryptedPassword, encryptedPrivateKey, useKeyAuth ? 1 : 0],
+      `INSERT INTO connections (user_id, name, host, port, username, password, private_key, use_key_auth, group_name, group_color) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, name, host, port || 22, username, encryptedPassword, encryptedPrivateKey, useKeyAuth ? 1 : 0, group_name || null, group_color || null],
       function(err) {
         if (err) {
           reject(err);
@@ -83,21 +83,21 @@ function createConnection(userId, connectionData) {
 function updateConnection(connectionId, userId, connectionData) {
   return new Promise((resolve, reject) => {
     const db = getDatabase();
-    const { name, host, port, username, password, privateKey, useKeyAuth } = connectionData;
-    
-    let sql = 'UPDATE connections SET name = ?, host = ?, port = ?, username = ?';
-    const values = [name, host, port || 22, username];
-    
+    const { name, host, port, username, password, privateKey, useKeyAuth, group_name, group_color } = connectionData;
+
+    let sql = 'UPDATE connections SET name = ?, host = ?, port = ?, username = ?, group_name = ?, group_color = ?';
+    const values = [name, host, port || 22, username, group_name || null, group_color || null];
+
     if (password !== undefined) {
       sql += ', password = ?';
       values.push(password ? encrypt(password) : null);
     }
-    
+
     if (privateKey !== undefined) {
       sql += ', private_key = ?';
       values.push(privateKey ? encrypt(privateKey) : null);
     }
-    
+
     sql += ', use_key_auth = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?';
     values.push(useKeyAuth ? 1 : 0, connectionId, userId);
     
@@ -135,3 +135,4 @@ module.exports = {
   updateConnection,
   deleteConnection
 };
+;

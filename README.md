@@ -1,6 +1,6 @@
 # SSH AGRE
 
-[![Version](https://img.shields.io/badge/version-0.2.2-blue)](https://github.com/yourusername/SSH-AGRE/releases)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue)](https://github.com/yourusername/SSH-AGRE/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-green)](docker-compose.yml)
 
@@ -37,6 +37,7 @@ For technical details, system structure, and development guidelines, see our [Ov
 - **Session Persistence**: Connections stay alive for 30+ minutes with automatic keep-alive packets
 - **Web-Based Terminal**: Full terminal emulation using xterm.js with 256-color support
 - **Command Library**: Create, edit, and execute predefined command macros
+- **Connection Groups**: Organize SSH connections and command macros into named groups with optional color-coded dots (`[YELLOW] Production`)
 - **Connection Management**: Save SSH connections with credentials and quick-connect options
 - **User Management**: Role-based access control with Admin and Basic user roles
 - **Security**: JWT authentication, bcrypt password hashing, rate limiting, input validation
@@ -248,6 +249,12 @@ docker-compose up -d --build
 If you're running SSH-AGRE in Docker and want to SSH into the same machine, use `host.docker.internal` as the hostname instead of the machine's IP address. This resolves Docker's network namespace isolation.
 
 ## Changelog
+
+### v0.3.0 (2026-04-26)
+- Added connection groups: assign SSH connections to named groups with optional color-coded dot indicators (supports RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK via `[COLOR] Name` syntax)
+- Added command macro groups: same grouping system applied to the command library sidebar
+- Groups are fully editable — assign or change a group at any time via the edit modal
+- Both sidebars render group headers with color dots and sort named groups alphabetically, with ungrouped items at the bottom
 
 ### v0.2.2 (2026-04-20)
 - Added Docker `extra_hosts` configuration for Linux to support connecting to the host machine via `host.docker.internal`

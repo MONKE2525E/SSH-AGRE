@@ -37,7 +37,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Create a new connection with input validation
 router.post('/', authenticateToken, validators.connection, handleValidationErrors, async (req, res) => {
   try {
-    const { name, host, port, username, password, privateKey, useKeyAuth } = req.body;
+    const { name, host, port, username, password, privateKey, useKeyAuth, group_name, group_color } = req.body;
     
     if (!name || !host || !username) {
       return res.status(400).json({ error: 'Name, host, and username are required' });
@@ -58,7 +58,9 @@ router.post('/', authenticateToken, validators.connection, handleValidationError
       username,
       password,
       privateKey,
-      useKeyAuth
+      useKeyAuth,
+      group_name,
+      group_color
     });
     
     res.status(201).json(connection);
@@ -75,25 +77,17 @@ router.put('/:id', authenticateToken, validators.connection, handleValidationErr
     if (isNaN(connectionId) || connectionId <= 0) {
       return res.status(400).json({ error: 'Invalid connection ID' });
     }
-    const { name, host, port, username, password, privateKey, useKeyAuth } = req.body;
-    
+    const { name, host, port, username, password, privateKey, useKeyAuth, group_name, group_color } = req.body;
+
     if (!name || !host || !username) {
       return res.status(400).json({ error: 'Name, host, and username are required' });
     }
-    
-    // Only include password in update if it's provided (allows empty string for "enter later")
-    const updateData = {
-      name,
-      host,
-      port,
-      username,
-      privateKey,
-      useKeyAuth
-    };
+
+    const updateData = { name, host, port, username, privateKey, useKeyAuth, group_name, group_color };
     if (password !== undefined) {
       updateData.password = password;
     }
-    
+
     await updateConnection(connectionId, req.user.userId || req.user.id, updateData);
     
     res.json({ success: true });

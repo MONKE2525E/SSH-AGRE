@@ -1,7 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
 
-function ConnectionModal({ connection, onClose, onSave, onDelete }) {
+const GROUP_COLORS = {
+  red: '#ef4444',
+  orange: '#f97316',
+  yellow: '#eab308',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  purple: '#a855f7',
+  pink: '#ec4899'
+};
+
+function parseGroupInput(str) {
+  if (!str || !str.trim()) return { group_name: null, group_color: null };
+  const match = str.trim().match(/^\[([A-Za-z]+)\]\s*(.+)$/);
+  if (match) {
+    const colorName = match[1].toLowerCase();
+    const name = match[2].trim();
+    if (GROUP_COLORS[colorName] && name) {
+      return { group_name: name, group_color: colorName };
+    }
+  }
+  const name = str.trim();
+  return { group_name: name || null, group_color: null };
+}
+
+function buildGroupString(group_name, group_color) {
+  if (!group_name) return '';
+  if (group_color && GROUP_COLORS[group_color]) {
+    return `[${group_color.toUpperCase()}] ${group_name}`;
+  }
+  return group_name;
+}
+
+function ConnectionModal({ connection, existingGroups, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
     name: '',
     host: '',
@@ -9,7 +41,8 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
     username: '',
     password: '',
     privateKey: '',
-    useKeyAuth: false
+    useKeyAuth: false,
+    group: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +57,8 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
         username: connection.username || '',
         password: '',
         privateKey: '',
-        useKeyAuth: connection.use_key_auth === 1
+        useKeyAuth: connection.use_key_auth === 1,
+        group: buildGroupString(connection.group_name, connection.group_color)
       });
     }
   }, [connection]);
@@ -41,12 +75,14 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
     setError('');
     setLoading(true);
 
+    const { group_name, group_color } = parseGroupInput(formData.group);
+
     try {
       const token = localStorage.getItem('token');
-      const url = isEditing 
+      const url = isEditing
         ? `${API_URL}/api/connections/${connection.id}`
         : `${API_URL}/api/connections`;
-      
+
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
@@ -60,7 +96,9 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
           username: formData.username,
           password: formData.password || undefined,
           privateKey: formData.privateKey || undefined,
-          useKeyAuth: formData.useKeyAuth
+          useKeyAuth: formData.useKeyAuth,
+          group_name,
+          group_color
         })
       });
 
@@ -76,6 +114,9 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
       setLoading(false);
     }
   };
+
+  const { group_color: previewColor } = parseGroupInput(formData.group);
+  const dotHex = previewColor ? GROUP_COLORS[previewColor] : null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -137,6 +178,41 @@ function ConnectionModal({ connection, onClose, onSave, onDelete }) {
                 placeholder="root"
                 required
               />
+            </div>
+
+            <div className="form-group">
+              <label>
+                Group{' '}
+                <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>(optional)</span>
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {dotHex && (
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: dotHex,
+                    flexShrink: 0
+                  }} />
+                )}
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ flex: 1 }}
+                  value={formData.group}
+                  onChange={(e) => setFormData({...formData, group: e.target.value})}
+                  placeholder="e.g., [YELLOW] Production"
+                  list="group-suggestions"
+                />
+              </div>
+              <datalist id="group-suggestions">
+                {(existingGroups || []).map(g => (
+                  <option key={g.name} value={buildGroupString(g.name, g.color)} />
+                ))}
+              </datalist>
+              <span className="form-hint">
+                Prefix with a color in brackets for a dot — RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK
+              </span>
             </div>
 
             <div className="checkbox-group">

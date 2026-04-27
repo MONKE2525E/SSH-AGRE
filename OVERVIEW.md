@@ -272,6 +272,12 @@ The project maintains strict security standards:
 - [ ] Add SFTP browser component to side panel.
 - [ ] Real-time notification system for scheduled task failures.
 
+### UI / UX Roadmap (from Claude Review)
+- [ ] **Quick UX Wins:** Add "Test Connection" button in New/Edit Connection modal, add a "last connected" timestamp to saved connections, and change the connection ⋮ button to open a dropdown instead of jumping to edit.
+- [ ] **Terminal Improvements:** Add a terminal toolbar (font size +/-, Clear Screen, Copy All, Fullscreen), split-pane terminal view, and a "Save to Library" shortcut from terminal.
+- [x] **New Features:** Connection groups/folders — assign connections and command macros to named groups with optional color-coded dots (e.g. `[YELLOW] Production`).
+- [ ] **New Features (Pending):** Connection search bar in panel header, display SSH fingerprint on first connect, quick reconnect banner for dropped sessions, and keyboard shortcuts (Ctrl+Shift+N, Ctrl+[1-9]).
+
 ### Known Limitations
 - SSH connections from Docker containers to the host machine: use `host.docker.internal` (Docker Desktop) or configure `extra_hosts` in docker-compose.yml (Linux).
 - Session timeout: 30 minutes of inactivity closes connections automatically.
@@ -366,5 +372,5 @@ docker-compose exec sshagre-frontend-1 sh
 
 **For user-facing documentation and quick start**, see [README.md](./README.md).
 
-**Last updated**: 2026-04-20  
-**Current version**: 0.2.2
+**Last updated**: 2026-04-26  
+**Current version**: 0.3.0

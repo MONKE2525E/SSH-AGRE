@@ -24,13 +24,13 @@ router.get('/', authenticateToken, async (req, res) => {
 // Create a new command macro with input validation
 router.post('/', authenticateToken, validators.macro, handleValidationErrors, async (req, res) => {
   try {
-    const { name, command, description } = req.body;
-    
+    const { name, command, description, group_name, group_color } = req.body;
+
     if (!name || !command) {
       return res.status(400).json({ error: 'Name and command are required' });
     }
-    
-    const macro = await createMacro(req.user.userId, { name, command, description });
+
+    const macro = await createMacro(req.user.userId, { name, command, description, group_name, group_color });
     res.status(201).json(macro);
   } catch (error) {
     console.error('[COMMANDS] Create macro error:', error);
@@ -45,13 +45,13 @@ router.put('/:id', authenticateToken, validators.macro, handleValidationErrors, 
     if (isNaN(macroId) || macroId <= 0) {
       return res.status(400).json({ error: 'Invalid macro ID' });
     }
-    const { name, command, description } = req.body;
-    
+    const { name, command, description, group_name, group_color } = req.body;
+
     if (!name || !command) {
       return res.status(400).json({ error: 'Name and command are required' });
     }
-    
-    await updateMacro(macroId, req.user.userId, { name, command, description });
+
+    await updateMacro(macroId, req.user.userId, { name, command, description, group_name, group_color });
     res.json({ success: true });
   } catch (error) {
     console.error('[COMMANDS] Update macro error:', error);
