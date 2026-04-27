@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const { getConnectionById } = require('../db/connections');
 const { logCommand } = require('../db/audit');
+const { verifyHostKey, addKnownHost } = require('../db/knownHosts');
 const { SSHSession } = require('../ssh/sshManager');
 
 const MAX_COMMAND_LENGTH = 1000;
@@ -61,7 +62,7 @@ router.post('/execute', authenticateToken, async (req, res) => {
 
       // Check if we have credentials
       const hasPassword = !!connection.password;
-      const hasKey = !!connection.sshKey;
+      const hasKey = !!connection.private_key;
       console.log('[BATCH] Credentials check:', { hasPassword, hasKey, username: connection.username });
       
       if (!hasPassword && !hasKey) {
@@ -110,8 +111,21 @@ router.post('/execute', authenticateToken, async (req, res) => {
           port: connection.port,
           username: connection.username,
           password: connection.password,
-          privateKey: connection.sshKey,
-          readyTimeout: 20000
+          privateKey: connection.private_key,
+          readyTimeout: 20000,
+          // SECURITY: Host key verification
+          hostHash: 'sha256',
+          hostVerifier: (keyHash) => {
+            return verifyHostKey(userId, connection.host, connection.port || 22, 'sha256', keyHash)
+              .then(result => {
+                if (result.status === 'match') return true;
+                if (result.status === 'new') {
+                  return addKnownHost(userId, connection.host, connection.port || 22, 'sha256', keyHash)
+                    .then(() => true);
+                }
+                return false; // mismatch
+              });
+          }
         });
       });
 
@@ -130,4 +144,3 @@ router.post('/execute', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
-exports = router;

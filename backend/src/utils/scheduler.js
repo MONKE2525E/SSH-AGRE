@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const Schedules = require('../db/schedules');
 const Connections = require('../db/connections');
+const { verifyHostKey, addKnownHost } = require('../db/knownHosts');
 const { Client } = require('ssh2');
 
 class Scheduler {
@@ -274,7 +275,20 @@ class Scheduler {
         host: connection.host,
         port: connection.port || 22,
         username: connection.username,
-        readyTimeout: 30000
+        readyTimeout: 30000,
+        // SECURITY: Host key verification
+        hostHash: 'sha256',
+        hostVerifier: (keyHash) => {
+          return verifyHostKey(connection.user_id, connection.host, connection.port || 22, 'sha256', keyHash)
+            .then(result => {
+              if (result.status === 'match') return true;
+              if (result.status === 'new') {
+                return addKnownHost(connection.user_id, connection.host, connection.port || 22, 'sha256', keyHash)
+                  .then(() => true);
+              }
+              return false; // mismatch
+            });
+        }
       };
 
       if (connection.use_key_auth && connection.private_key) {

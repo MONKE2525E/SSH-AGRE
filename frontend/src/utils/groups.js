@@ -29,3 +29,25 @@ export function buildGroupString(group_name, group_color) {
   }
   return group_name;
 }
+
+export function getExistingGroups(items) {
+  const groups = new Map();
+  items.forEach(item => {
+    if (item.group_name) {
+      groups.set(item.group_name, item.group_color || null);
+    }
+  });
+  return Array.from(groups.entries()).map(([name, color]) => ({ name, color }));
+}
+
+export function groupItems(items) {
+  const grouped = { 'Ungrouped': [] };
+  items.forEach(item => {
+    const groupName = item.group_name || 'Ungrouped';
+    if (!grouped[groupName]) {
+      grouped[groupName] = [];
+    }
+    grouped[groupName].push(item);
+  });
+  return grouped;
+}

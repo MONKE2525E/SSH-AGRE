@@ -181,8 +181,7 @@ router.post('/:id/reset-password', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Password must be 8-128 characters' });
     }
 
-    const hashed = await bcrypt.hash(newPassword, 12);
-    await updateUserProfile(userId, { password: hashed });
+    await updateUserProfile(userId, { password: newPassword });
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     console.error('[USERS] Reset password error:', error);

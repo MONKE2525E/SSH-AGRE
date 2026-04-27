@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
-import { GROUP_COLORS, parseGroupInput, buildGroupString } from '../utils/groups';
+import { parseGroupInput, buildGroupString } from '../utils/groups';
+import GroupInput from './GroupInput';
 
 function ConnectionModal({ connection, existingGroups, onClose, onSave, onDelete }) {
   const [formData, setFormData] = useState({
@@ -84,9 +85,6 @@ function ConnectionModal({ connection, existingGroups, onClose, onSave, onDelete
     }
   };
 
-  const { group_color: previewColor } = parseGroupInput(formData.group);
-  const dotHex = previewColor ? GROUP_COLORS[previewColor] : null;
-
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content connection-modal" onClick={e => e.stopPropagation()}>
@@ -149,40 +147,12 @@ function ConnectionModal({ connection, existingGroups, onClose, onSave, onDelete
               />
             </div>
 
-            <div className="form-group">
-              <label>
-                Group{' '}
-                <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>(optional)</span>
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {dotHex && (
-                  <div style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    backgroundColor: dotHex,
-                    flexShrink: 0
-                  }} />
-                )}
-                <input
-                  type="text"
-                  className="form-input"
-                  style={{ flex: 1 }}
-                  value={formData.group}
-                  onChange={(e) => setFormData({...formData, group: e.target.value})}
-                  placeholder="e.g., [YELLOW] Production"
-                  list="group-suggestions"
-                />
-              </div>
-              <datalist id="group-suggestions">
-                {(existingGroups || []).map(g => (
-                  <option key={g.name} value={buildGroupString(g.name, g.color)} />
-                ))}
-              </datalist>
-              <span className="form-hint">
-                Prefix with a color in brackets for a dot — RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK
-              </span>
-            </div>
+            <GroupInput
+              value={formData.group}
+              onChange={(val) => setFormData({...formData, group: val})}
+              existingGroups={existingGroups}
+              datalistId="connection-group-suggestions"
+            />
 
             <div className="checkbox-group">
               <input

@@ -6,7 +6,7 @@ import ConnectionModal from '../components/ConnectionModal';
 import CommandModal from '../components/CommandModal';
 import ProfileModal from '../components/ProfileModal';
 import '../styles/dashboard.css';
-import { GROUP_COLORS as GROUP_COLOR_MAP } from '../utils/groups';
+import { GROUP_COLORS as GROUP_COLOR_MAP, getExistingGroups, groupItems } from '../utils/groups';
 
 function Dashboard() {
   const { user } = useAuth();
@@ -324,49 +324,13 @@ function Dashboard() {
     !activeSessions.some(s => s.connectionId === c.id)
   ), [connections, activeSessions]);
 
-  const existingGroups = useMemo(() => {
-    const groups = new Map();
-    connections.forEach(c => {
-      if (c.group_name) {
-        groups.set(c.group_name, c.group_color || null);
-      }
-    });
-    return Array.from(groups.entries()).map(([name, color]) => ({ name, color }));
-  }, [connections]);
+  const existingGroups = useMemo(() => getExistingGroups(connections), [connections]);
 
-  const groupedInactiveConnections = useMemo(() => {
-    const grouped = { 'Ungrouped': [] };
-    inactiveConnections.forEach(c => {
-      const groupName = c.group_name || 'Ungrouped';
-      if (!grouped[groupName]) {
-        grouped[groupName] = [];
-      }
-      grouped[groupName].push(c);
-    });
-    return grouped;
-  }, [inactiveConnections]);
+  const groupedInactiveConnections = useMemo(() => groupItems(inactiveConnections), [inactiveConnections]);
 
-  const existingCommandGroups = useMemo(() => {
-    const groups = new Map();
-    commands.forEach(c => {
-      if (c.group_name) {
-        groups.set(c.group_name, c.group_color || null);
-      }
-    });
-    return Array.from(groups.entries()).map(([name, color]) => ({ name, color }));
-  }, [commands]);
+  const existingCommandGroups = useMemo(() => getExistingGroups(commands), [commands]);
 
-  const groupedCommands = useMemo(() => {
-    const grouped = { 'Ungrouped': [] };
-    commands.forEach(c => {
-      const groupName = c.group_name || 'Ungrouped';
-      if (!grouped[groupName]) {
-        grouped[groupName] = [];
-      }
-      grouped[groupName].push(c);
-    });
-    return grouped;
-  }, [commands]);
+  const groupedCommands = useMemo(() => groupItems(commands), [commands]);
 
   return (
     <div className="dashboard">

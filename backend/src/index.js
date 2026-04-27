@@ -27,7 +27,6 @@ const { apiLimiter, authLimiter, speedLimiter, auditLogger, sanitizeRequest } = 
 
 // SECURITY: Use environment variables or defaults
 const JWT_SECRET = process.env.JWT_SECRET;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'default_setup_password_change_me';
 
 const app = express();
 const PORT = process.env.PORT || 31457;
