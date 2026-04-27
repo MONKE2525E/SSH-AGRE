@@ -6,16 +6,7 @@ import ConnectionModal from '../components/ConnectionModal';
 import CommandModal from '../components/CommandModal';
 import ProfileModal from '../components/ProfileModal';
 import '../styles/dashboard.css';
-
-const GROUP_COLOR_MAP = {
-  red: '#ef4444',
-  orange: '#f97316',
-  yellow: '#eab308',
-  green: '#22c55e',
-  blue: '#3b82f6',
-  purple: '#a855f7',
-  pink: '#ec4899'
-};
+import { GROUP_COLORS as GROUP_COLOR_MAP } from '../utils/groups';
 
 function Dashboard() {
   const { user } = useAuth();

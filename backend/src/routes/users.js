@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { authenticateToken } = require('../middleware/auth');
 const { validators, handleValidationErrors } = require('../middleware/security');
 const { getUserById, updateUserProfile, getAllUsers, getPendingUsers, approveUser, deleteUser, toggleUserAdmin } = require('../db/users');
@@ -165,18 +166,23 @@ router.post('/:id/reset-password', authenticateToken, async (req, res) => {
     if (!req.user.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    
+
     const userId = parseInt(req.params.id);
     if (isNaN(userId) || userId <= 0) {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
-    
-    const { newPassword } = req.body;
-    if (!newPassword || newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    if (userId === req.user.userId) {
+      return res.status(400).json({ error: 'Use the Account tab to change your own password' });
     }
-    
-    await updateUserProfile(userId, { password: newPassword });
+
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 8 || newPassword.length > 128) {
+      return res.status(400).json({ error: 'Password must be 8-128 characters' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await updateUserProfile(userId, { password: hashed });
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     console.error('[USERS] Reset password error:', error);

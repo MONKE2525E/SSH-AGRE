@@ -26,7 +26,7 @@ router.get('/status', authenticateToken, async (req, res) => {
 // Get all connections for the authenticated user
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const connections = await getUserConnections(req.user.userId || req.user.id);
+    const connections = await getUserConnections(req.user.userId);
     res.json(connections);
   } catch (error) {
     console.error('[CONNECTIONS] Get connections error:', error);
@@ -51,7 +51,7 @@ router.post('/', authenticateToken, validators.connection, handleValidationError
       return res.status(400).json({ error: 'Password is required for password authentication' });
     }
     
-    const connection = await createConnection(req.user.userId || req.user.id, {
+    const connection = await createConnection(req.user.userId, {
       name,
       host,
       port,
@@ -88,7 +88,7 @@ router.put('/:id', authenticateToken, validators.connection, handleValidationErr
       updateData.password = password;
     }
 
-    await updateConnection(connectionId, req.user.userId || req.user.id, updateData);
+    await updateConnection(connectionId, req.user.userId, updateData);
     
     res.json({ success: true });
   } catch (error) {
@@ -104,7 +104,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     if (isNaN(connectionId) || connectionId <= 0) {
       return res.status(400).json({ error: 'Invalid connection ID' });
     }
-    await deleteConnection(connectionId, req.user.userId || req.user.id);
+    await deleteConnection(connectionId, req.user.userId);
     res.json({ success: true });
   } catch (error) {
     console.error('[CONNECTIONS] Delete connection error:', error);
